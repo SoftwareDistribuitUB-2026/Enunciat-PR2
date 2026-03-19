@@ -45,15 +45,18 @@ Es treballarà de la mateixa manera que a la Pràctica 1, utilitzant un reposito
 
 ## Objectius de la Pràctica
 
+En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
+
 #### Back-End:
 
-- Crear aplicació CRUD amb autentificació per a gestionar (CRUD: Create, Read, Update i Delete) de la part de model d'aplicació
-- Gestionar la lògica del joc
+- Crear aplicació CRUD amb autenticació per a gestionar (CRUD: Create, Read, Update i Delete) de la part de model d'aplicació.
+- Gestionar l'estoc d'entrades i la gestió d'usuaris i permisos.
+
 
 #### Front-End:
 
 - Interacció amb l'usuari, tant pel que fa a la visualització de dades com a la recollida d'accions.
-- Comunicació segura amb el back-end
+- Comunicació segura amb el back-end.
 
 # Calendari
 
