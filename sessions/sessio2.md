@@ -149,17 +149,19 @@ main {
 
 Per veure la màgia en acció, és vital que recordeu que ara tenim **dos projectes independents**. Necessiteu obrir dues terminals diferents al vostre editor:
 
-1.  **Terminal 1 (Backend):** \`\`\`bash
+1. **Terminal 1 (Backend):**
+
+```bash
     cd backend
     uv run python manage.py runserver
-    ```
-    ```
-2.  **Terminal 2 (Frontend):** \`\`\`bash
+```
+
+2. **Terminal 2 (Frontend):** 
+
+```bash
     cd frontend
     npm run dev
-    ```
-    
-    ```
+```
 
 Obriu el navegador a l'adreça del frontend (normalment `http://localhost:5173`). Si veieu la llista dels vostres esdeveniments... 🎉 Felicitats\! Heu connectat amb èxit el Vue amb el Django.
 

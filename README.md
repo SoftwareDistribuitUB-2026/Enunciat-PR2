@@ -1,6 +1,6 @@
 ---
 author: Xevi Baró, Mario Moliner, Eloi Puertas
-date: Abril 2025
+date: Abril 2026
 title: Pràctica 2 - DJango and Vue application (Software distribuït)
 ---
 
@@ -59,7 +59,7 @@ Es treballarà de la mateixa manera que a la Pràctica 1, utilitzant un reposito
 
 | Sessió | Data (Setmana) | Tema | Guia | Enllaços |
 | :--- | :--- | :--- | :--- | :--- |
-| 1 | 23/03/26 | Backend Foundation (Models i DRF) | [Sessió 1](sessions/sessio1.md) | [Intro a Django](guies/inici_django.md) |
+| 1 | 23/03/26 | Backend Foundation (Models i DRF) | [Sessió 1](sessions/sessio1.md) | [L'ORM de Django i els Models de Dades](../guies/django_models_orm.md)<br>[Creant APIs amb Django REST Framework](../guies/drf_rest.md)<br>[Flux de treball amb Git i CI/CD](../guies/flux_treball_git_ci.md) |
 | 2 | 06/04/26 | Frontend, Axios i Reactivitat | [Sessió 2](sessions/sessio2.md) | [Intro a Vue](guies/introduccio_vue.md)<br>[CORS i CSRF](guies/seguretat_cors_csrf.md) |
 | 3 | 13/04/26 | Navegació (Router) i Cistella (Pinia) | [Sessió 3](sessions/sessio3.md) | [Estat amb Pinia](guies/estat_pinia.md) |
 | 4 | 27/04/26 | Autenticació i Autorització |  | |
