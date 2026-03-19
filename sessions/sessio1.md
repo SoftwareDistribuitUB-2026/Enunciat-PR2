@@ -176,6 +176,7 @@ uv run python manage.py test
 ```
 Veuràs que s'executa el test i finalitza amb un "OK". 
 
+
 👉 **Reflexió:** Què passa si executes la mateixa comanda de test dos cops seguits? Donarà error dient que l'usuari "testuser" ja existeix? 
 *Prova-ho! Veuràs que no falla. Això és perquè Django genera una base de dades temporal exclusivament per als tests totalment buida, executa les proves i, en acabar, la destrueix. Així es garanteix que els teus tests siguin aïllats i reproduïbles.*
 
