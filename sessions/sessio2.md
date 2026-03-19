@@ -174,7 +174,7 @@ Si la pàgina carrega però només veieu el títol de "TicketFlow" i cap dada, n
 3.  Si veieu un error de color vermell que conté el text `blocked by CORS policy`, significa que el vostre backend Django està refusant parlar amb el frontend per motius de seguretat.
 
 **Com solucionar-ho:**
-Repasseu detingudament la guia de [Seguretat: CORS i CSRF](https://www.google.com/search?q=../guies/seguretat_cors_csrf.md). Us heu d'assegurar que:
+Repasseu detingudament la guia de [Seguretat: CORS i CSRF](../guies/seguretat_cors_csrf.md). Us heu d'assegurar que:
 
   * Heu instal·lat `django-cors-headers`.
   * L'heu afegit a `INSTALLED_APPS` i als `MIDDLEWARE` del fitxer `settings.py`.
