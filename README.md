@@ -47,13 +47,13 @@ Es treballarà de la mateixa manera que a la Pràctica 1, utilitzant un reposito
 
 En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
 
-#### Back-End:
+### Back-End:
 
 - Crear aplicació CRUD amb autenticació per a gestionar (CRUD: Create, Read, Update i Delete) de la part de model d'aplicació.
 - Gestionar l'estoc d'entrades i la gestió d'usuaris i permisos.
 
 
-#### Front-End:
+### Front-End:
 
 - Interacció amb l'usuari, tant pel que fa a la visualització de dades com a la recollida d'accions.
 - Comunicació segura amb el back-end.
@@ -62,10 +62,9 @@ En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
 
 | Sessió | Data (Setmana) | Tema | Guia | Enllaços |
 | :--- | :--- | :--- | :--- | :--- |
-| 1 | 23/03/26 | Backend Foundation (Models i DRF) | [Sessió 1](sessions/sessio1.md) | [L'ORM de Django i els Models de Dades](../guies/django_models_orm.md)<br>[Creant APIs amb Django REST Framework](../guies/drf_rest.md)<br>[Flux de treball amb Git i CI/CD](../guies/flux_treball_git_ci.md) |
-| 2 | 06/04/26 | Frontend, Axios i Reactivitat | [Sessió 2](sessions/sessio2.md) | [Intro a Vue](guies/introduccio_vue.md)<br>[CORS i CSRF](guies/seguretat_cors_csrf.md) |
-| 3 | 13/04/26 | Navegació (Router) i Cistella (Pinia) | [Sessió 3](sessions/sessio3.md) | [Estat amb Pinia](guies/estat_pinia.md) |
+| 1 | 23/03/26 | Backend Foundation (Models i DRF) | [Sessió 1](sessions/sessio1.md) | [L'ORM de Django i els Models de Dades](../guies/django_models_orm.md)<br>[Creant APIs amb Django REST Framework](../guies/drf_rest.md)<br>[Flux de treball amb Git i CI/CD](../guies/flux_treball_git_ci.md)<br>Configuració i utilització de pytest amb Django i DRF](../guies/pytest_django_drf.md) |
+| 2 | 06/04/26 | Frontend, Axios i Reactivitat |  |
+| 3 | 13/04/26 | Navegació (Router) i Cistella (Pinia) ||
 | 4 | 27/04/26 | Autenticació i Autorització |  | |
 | 5 | 04/05/26 | Finalització de Compres i Testing | | |
 | 6 | 11/05/26 | Sessió de Proves i Desplegament |  | |
-
