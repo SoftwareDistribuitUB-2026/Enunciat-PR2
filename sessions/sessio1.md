@@ -374,11 +374,13 @@ classDiagram
 **Tasques a realitzar:**
 1.  **Models de Compra i Entrada:** Crea els models `Compra` i `Entrada` a `backend/api/models.py`. Has de definir correctament les relacions a la base de dades:
     * Una `Compra` és realitzada per un únic `User` (afegeix un camp `ForeignKey` a `Compra` relacionant-la amb el model `User`).
-    * Una `Entrada` pertany a una única `Compra` i correspon a un únic `Event` (afegeix **dues** `ForeignKey` a la classe `Entrada`: una relacionant-la amb `Compra` i l'altra amb `Event`).
+    * Una `Entrada` pertany a una única `Compra` i correspon a un únic `Event` (afegeix **dues** `ForeignKey` a la classe `Entrada`: una relacionant-la amb `Compra` i l'altra amb `Event`). Tingues en compte que per cada `Entrada` s'ha d'especificar quantes unitats s'inclouen a la `Compra` (camp **quantitat**).
+    * Al model `Event`, crea un mètode o propietat anomenada **capacitat** que retorni les places disponibles actualment (és a dir, la **capacitat_maxima** de l'esdeveniment menys la **suma de les quantitats de totes les entrades venudes** per a aquell esdeveniment). Investiga a la documentació de Django REST Framework com pots fer que aquest valor calculat aparegui al JSON quan consultis els esdeveniments (**Pista:** busca informació sobre `SerializerMethodField` o com serialitzar una `@property`).
+
 2.  **Migracions:** Genera i aplica les migracions per aquests nous models, i registra'ls a `backend/api/admin.py`.
-3.  **Endpoints de l'API:** Crea els Serialitzadors i ViewSets per als nous models i exposa'ls a `backend/api/urls.py` sota els prefixos `/api/v1/compres/` i `/api/v1/entrades/`.
+3.  **Endpoints de l'API:** Crea els `Serialitzadors` i `ViewSets` per als nous models i exposa'ls a `backend/api/urls.py` sota els prefixos `/api/v1/compres/` i `/api/v1/entrades/`.
 4.  **Afegir imatge a l'esdeveniment:** Un sistema de venda d'entrades no seria gaire atractiu si els esdeveniments no tinguessin un cartell o una imatge promocional. Us proposem afegir la capacitat de vincular una imatge a cada `Event`. Com a mínim caldrà que existeixi un enllaç a la imatge (pots mirar la documentació de [URLField](https://docs.djangoproject.com/en/6.0/ref/models/fields/#urlfield). Opcionalment, al final de l'enunciat us proposem un repte una mica més gran.
-5.  **Tests:** Afegeix un test al fitxer `backend/api/tests.py` que verifiqui que es pot crear un `Event` correctament a través de l'API fent un `POST` a `/api/v1/events/`.
+5.  **Tests:** Afegeix un test al fitxer `backend/api/tests.py` que verifiqui que es pot crear un `Event` correctament a través de l'API fent un `POST` a `/api/v1/events/`. A més, afegeix un test per verificar la creació d'una `Entrada` assignant-li una quantitat, i comprova que, un cop creada, la `capacitat` de l'esdeveniment s'ha reduït correctament, i que no es poden comprar més entrades de les disponibles.
 6.  **Verificació Local:** Abans de pujar el codi, executa `uv run python manage.py test` a la teva terminal local per confirmar que tant el test antic com el nou passen amb èxit.
 7.  **Pull Request:** Fes un `commit` amb tots els teus canvis, puja'ls a la teva branca `dev` (`git push origin dev`) i obre una Pull Request cap a la branca `main`. Les GitHub Actions executaran de nou els tests al núvol.
 
