@@ -12,6 +12,9 @@ En aquesta segona sessió, farem que el nostre frontend cobri vida. Connectarem 
 Abans o durant la realització d'aquesta sessió, és **imprescindible** que doneu un cop d'ull a aquestes guies de suport:
 * 📖 [Introducció a Vue 3 i Composition API](../guies/introduccio_vue.md): Conceptes bàsics del framework, reactivitat i directives (`v-for`, `v-if`).
 * 📖 [Seguretat: CORS i CSRF](../guies/seguretat_cors_csrf.md): Per entendre com interactuen el frontend i el backend de forma segura i evitar els bloquejos del navegador.
+* 📖 [Validació de dades](../guies/serialitzadors_validacio_dades.md): Per entendre com podem validar les dades d'entrada en els serialitzadors.
+* 📖 [Serialitzadors aniuats](../guies/serialitzadors_niuats.md): Per entendre com podem aniuar serialitzadors.
+* 📖 [Gestió d'errors i operacions atòmiques](../guies/drf_gestio_errors.md): Per veure com gestionar els errors en DRF i com realitzar operacions atòmiques.
 
 ---
 
@@ -25,15 +28,17 @@ No obstant això, quan una aplicació web client (el nostre Vue) fa una petició
 ```bash
 curl http://localhost:8000/api/v1/events/
 ```
+
 Veuràs que el resultat és un simple text estructurat. Aquest JSON és l'idioma universal amb el qual parlarem avui mitjançant una llibreria anomenada **Axios**.
 
 ---
 
 ## 2. El Servei de l'API i el Llistat d'Esdeveniments
 
-Anem a crear la infraestructura perquè Vue demani aquest JSON i el pinti per pantalla. 
+Anem a crear la infraestructura perquè Vue demani aquest JSON i el mostri per pantalla. 
 
 ### Diagrama de la comunicació
+
 Aquest és el flux exacte del que passarà quan carreguem la nostra pàgina de llistat:
 
 ```mermaid
@@ -53,6 +58,7 @@ sequenceDiagram
 ```
 
 ### 2.1. Configurar Axios
+
 Crea el fitxer `src/services/api.js`. Aquest fitxer serà el nostre "telèfon" directe cap al backend, evitant haver d'escriure la URL completa a cada lloc.
 
 ```javascript
@@ -70,7 +76,8 @@ export default api;
 ```
 
 ### 2.2. El component `EventList.vue`
-Crea un nou component a `src/components/EventList.vue`. Aquí utilitzarem `onMounted` per fer la crida just quan el component es munti a la pantalla, i `ref` per guardar el resultat reactivament.
+
+Crea un nou component a `src/components/EventList.vue`. Aquí utilitzarem `onMounted` per fer la crida just quan el component es munti a la pantalla, i `ref` per guardar el resultat reactivament. Fixa't que estem utilitzant els camps que es van definir a la sessió 1 com a part del model (`titol`, `data`, ...).
 
 ```vue
 <script setup>
@@ -94,8 +101,8 @@ onMounted(async () => {
     <h2>Pròxims Esdeveniments</h2>
     <div class="events-grid">
       <div v-for="event in events" :key="event.id" class="event-card">
-        <h3>{{ event.name }}</h3>
-        <p>Data: {{ event.date }}</p>
+        <h3>{{ event.titol }}</h3>
+        <p>Data: {{ event.data }}</p>
       </div>
     </div>
   </div>
@@ -109,7 +116,7 @@ onMounted(async () => {
 
 ### 2.3. Connectar-ho tot a `App.vue`
 
-Ara que tenim el nostre component `EventList` llest per demanar dades, l'hem de fer visible a la pantalla principal. Per defecte, Vite ha creat un fitxer `src/App.vue` ple de codi i logos d'exemple. L'anem a netejar completament.
+Per defecte, **Vite** ha creat un fitxer `src/App.vue` ple de codi i logos d'exemple. L'anem a netejar completament.
 
 Obre `src/App.vue` i substitueix **tot** el seu contingut per aquest:
 
@@ -143,11 +150,11 @@ main {
   padding: 0 1rem;
 }
 </style>
-````
+```
 
 ### 2.4. La Prova de Foc: Executar i Depurar
 
-Per veure la màgia en acció, és vital que recordeu que ara tenim **dos projectes independents**. Necessiteu obrir dues terminals diferents al vostre editor:
+Per veure la màgia en acció, és vital que recordeu que ara tenim **dos projectes independents**. Necessiteu obrir dues terminals diferents al vostre editor per executar el `backend` i el `frontend` **simultàniament**:
 
 1. **Terminal 1 (Backend):**
 
@@ -184,10 +191,9 @@ Repasseu detingudament la guia de [Seguretat: CORS i CSRF](../guies/seguretat_co
 
 ## 3. Composició de Components (Delegació)
 
-El component `EventList` actual està fent massa coses: demana les dades a l'API i, a més, decideix com es pinta cada targeta individual. En aplicacions grans, dividim això en components més petits per millorar el manteniment.
+El component `EventList` actual està fent massa coses: demana les dades a l'API i, a més, decideix com es pinta cada targeta individual. En aplicacions grans, dividim això en components més petits per millorar el manteniment. Crearem un fill anomenat `EventItem` que només s'encarregarà de dibuixar l'esdeveniment rebent les dades via **props**.
 
 ### 3.1. Crear el component `EventItem.vue`
-Aquest component **no farà peticions**. Només rebrà un objecte `event` des del seu pare i s'encarregarà de dibuixar-lo de forma bonica. Això es fa mitjançant les **props**.
 
 Crea el fitxer `src/components/EventItem.vue`:
 
@@ -204,20 +210,25 @@ defineProps({
 
 <template>
   <div class="event-card">
-    <h3>{{ event.name }}</h3>
-    <p><strong>Data:</strong> {{ event.date }}</p>
-    <p><strong>Preu:</strong> {{ event.price }} €</p>
-    <button>Veure detalls</button>
+    <img v-if="event.imatge_url" :src="event.imatge_url" alt="Cartell" class="event-img" />
+
+    <h3>{{ event.titol }}</h3>
+    <p><strong>Data:</strong> {{ event.data }}</p>
+    <p><strong>Preu:</strong> {{ event.preu }} €</p>
+    <p><strong>Places restants:</strong> {{ event.capacitat }}</p>
+    <button>Afegir a la cistella</button>
   </div>
 </template>
 
 <style scoped>
 .event-card { border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+.event-img { width: 100%; border-radius: 4px; margin-bottom: 10px; }
 </style>
 ```
 
 ### 3.2. Refactoritzar `EventList.vue`
-Ara, modifica el fitxer `EventList.vue`. Importa el nou component i fes que delegui la tasca de pintat cridant a `EventItem` i passant-li les dades:
+
+Modifica `EventList.vue` perquè delegui la tasca de mostrar un event concret a `EventItem`:
 
 ```vue
 <script setup>
@@ -248,38 +259,37 @@ Aquest patró de disseny us serà extremadament útil a mesura que l'aplicació 
 
 ---
 
-## 🏠 Treball fora del laboratori: Tests de l'API
+## 🏠 Treball fora del laboratori: L'API com a Capa de Negoci (El Checkout)
 
-A la Sessió 1 vau crear els models `Event`, `Ticket` i `User`. Ara que ja hem configurat l'entorn de proves del backend amb `pytest`, l'objectiu és assegurar-nos que la nostra API és robusta abans de continuar construint complexitat al frontend.
+Fins ara hem dissenyat la nostra API com un mirall estricte de la nostra base de dades: tenim un endpoint per a `Events`, un per a `Compres` i un per a `Entrades`. Aquesta arquitectura tipus CRUD (Crear, Llegir, Actualitzar, Esborrar) està molt bé per a la gestió de dades bàsica.
+
+Però, què passa amb la cistella de la compra? Processar una comanda no és només "inserir un registre", és un **procés de negoci** que implica:
+1. Rebre una llista d'esdeveniments i quantitats.
+2. Validar si hi ha prou aforament per a tots.
+3. Crear una nova `Compra`.
+4. Crear les `Entrades` corresponents.
+5. Si qualsevol pas falla, **desfer-ho absolutament tot** perquè l'usuari no es quedi amb una compra a mitges.
+
+Per resoldre això, abandonarem els `ModelViewSets` automàtics i crearem un endpoint dedicat exclusivament a aquest procés: el **Checkout**.
 
 **Tasques a realitzar:**
-Aneu a la carpeta `backend/api/tests/` i creeu els fitxers de test necessaris (ex: `test_events.py` o `test_tickets.py`). Heu d'implementar proves per verificar el comportament dels vostres endpoints utilitzant l'`APIClient` de DRF.
 
-**Exemples de validacions que heu de programar:**
-1. **Llistat d'elements (GET):** Comprovar que si faig un GET a `/api/v1/events/` em retorna un codi d'estat 200 (OK) i una llista.
-2. **Creació d'elements (POST):** Comprovar que puc crear un esdeveniment enviant un JSON vàlid i que el sistema retorna un 201 (Created).
-3. **Validació d'errors (Bad Request):** Comprovar que si intento crear un esdeveniment *sense* camps obligatoris (com el nom o el preu), l'API no peta, sinó que em retorna un error 400.
+1. **El Serialitzador de Negoci (`serializers.py`):**
+   Crea un serialitzador que no hereti de `ModelSerializer`, sinó directament de `serializers.Serializer`. Aquest serialitzador no es guardarà a cap taula de cop, només servirà per validar el JSON que ens enviarà el Vue. Ha d'acceptar una llista d'objectes amb l'`id` de l'esdeveniment i la `quantitat`.
+   *(Pista: Investiga com fer servir `serializers.ListField` o crear un serialitzador niuat bàsic per a les línies de la comanda).*
 
-*Exemple d'estructura per començar un test de DRF:*
-```python
-import pytest
-from rest_framework.test import APIClient
-from api.models import Event
+2. **La Vista de Checkout i l'Atomicitat (`views.py`):**
+   Crea una nova vista anomenada `CheckoutView` que hereti de `APIView` (la vista més bàsica de DRF). 
+   * Implementa el mètode `post(self, request)`.
+   * Utilitza el decorador `@transaction.atomic` per garantir la regla del "Tot o Res".
+   * Dins del mètode, extreu les dades, valida l'aforament de cada esdeveniment consultant la base de dades, crea la `Compra`, i genera les `Entrades`. Si un esdeveniment no té aforament, llança un error (ex: `Response({"error": "..."}, status=400)`). L'excepció farà que la transacció atòmica desfaci els canvis previs automàticament.
 
-@pytest.mark.django_db
-class TestEventAPI:
-    def setup_method(self):
-        self.client = APIClient()
+3. **Registrar l'Endpoint (`urls.py`):**
+   Afegeix la teva nova vista al fitxer de rutes manualment perquè respongui a l'adreça `/api/v1/checkout/`.
 
-    def test_get_events_list(self):
-        # 1. Preparació (Crear dades de prova a la BD temporal)
-        Event.objects.create(name="Concert Rock", date="2026-05-20", price=25.50)
-        
-        # 2. Acció (Fer la petició HTTP local)
-        response = self.client.get('/api/v1/events/')
-        
-        # 3. Comprovació (Asserts)
-        assert response.status_code == 200
-        assert len(response.data) == 1
-        assert response.data[0]['name'] == "Concert Rock"
-```
+4. **Tests de la Lògica de Negoci (`tests.py`):**
+   Crea un nou test `test_checkout_fa_rollback_si_no_hi_ha_aforament`. Simula una petició `POST` a `/api/v1/checkout/` enviant un JSON amb dos esdeveniments, on un d'ells superi la capacitat màxima. 
+   Verifica mitjançant `asserts` que l'API retorna un `400 BAD REQUEST` i que el nombre de compres (`Compra.objects.count()`) i entrades a la base de dades segueix sent `0` (l'error d'un ha cancel·lat la creació de l'altre).
+
+5. **Pull Request:** Fes `commit`, `push` a la branca `dev` i obre una PR cap a `main` perquè les GitHub Actions validin la teva nova lògica de negoci.
+
