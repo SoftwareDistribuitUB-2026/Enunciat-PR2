@@ -366,6 +366,7 @@ classDiagram
   User "1" -- "*" Compra : Realitza (comprador)
   Compra "1" -- "*" Entrada : Conté
   Event "1" -- "*" Entrada : Pertany a
+  Event: +Integer quantitat()
 
   %% Estilització per destacar el model natiu de Django
   style User fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
