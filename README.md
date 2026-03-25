@@ -30,9 +30,11 @@ Es treballarà de la mateixa manera que a la Pràctica 1, utilitzant un reposito
   - organització dels membres de l'equip per a la realització de les tasques
   - problemes sorgits durant la setmana
   - resum de proves realitzades
-- Durant la realització de la pràctica haureu d'anar documentant el vostre progrés en la memòria que trobareu en el directori `docs` del template de la pràctica.
+- Durant la realització de la pràctica haureu d'anar documentant el vostre progrés. Cal crear un directori `docs` a l'arrel de la pràctica amb un `index.md` on hi hagi el punt d'entrada a la memòria.
 
 **NOTA:** Recordeu que els `Pull Requests` cal que els iniciï un membre de l'equip i els accepti l'altre, donant així conformitat al seu contingut per part dels dos membres de l'equip.
+
+> **IMPORTANT:** Per a que s'avalui la pràctica, s'ha d'haver fet com a **mínim 4 Pull Requests setmanals**. En cas contrari la nota serà de 0.
 
 ## Avaluació pràctica 2.
 
