@@ -250,10 +250,6 @@ Accedeix a `http://localhost:8000/admin`, fes login amb el teu superusuari i cre
 
 Finalment, repeteix els passos de la secció 4.3 (Serializer, ViewSet i Router) però per al model `Event`, modificant `backend/api/serializers.py`, `backend/api/views.py` i `backend/api/urls.py` de manera que quedi publicat a la ruta `/api/v1/events/`.
 
-Bona idea! En Markdown estàndard no podem pintar el fons directament, però si esteu penjant aquesta guia a GitHub, GitLab, o algun sistema que suporti el Markdown modern, la millor manera de crear una caixa d'alerta amb tons vermellosos és utilitzant l'etiqueta `[!CAUTION]` o `[!WARNING]`.
-
-Aquí tens com quedaria el codi exacte per generar aquesta caixa d'avís perquè ressalti moltíssim:
-
 > [!CAUTION]
 > 🐛 **Avís important: Convivint amb els *bugs* del món real**
 > 
