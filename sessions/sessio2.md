@@ -114,41 +114,75 @@ onMounted(async () => {
 </style>
 ```
 
-### 2.3. Connectar-ho tot a `App.vue`
+### 2.3. Configurar les Rutes i netejar `App.vue`
 
-Per defecte, **Vite** ha creat un fitxer `src/App.vue` ple de codi i logos d'exemple. L'anem a netejar completament.
+A la nostra aplicació estem utilitzant **Vue Router**. Això vol dir que el fitxer `App.vue` actua com a "plantilla" o "esquelet" general de la web (on hi ha el menú i el títol), i el contingut especific de cada pàgina s'injecta dinàmicament dins de l'etiqueta `<RouterView />`.
 
-Obre `src/App.vue` i substitueix **tot** el seu contingut per aquest:
+Per veure el nostre llistat d'esdeveniments a la pàgina principal, hem de fer dos passos:
+
+**1. Actualitzar el Router:**
+Obre el fitxer `src/router/index.js` on teniu definides les rutes. Importa el teu nou component `EventList` i assigna'l a la ruta principal (`/`):
+
+```javascript
+import { createRouter, createWebHistory } from 'vue-router'
+// 1. Importem el component que acabem de crear
+import EventList from '../components/EventList.vue' 
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: EventList // 2. L'assignem a la ruta arrel
+    }
+  ]
+})
+
+export default router
+```
+
+> **💡 Com funciona el Router?**
+> Fixa't que per afegir una ruta només cal afegir un nou objecte dins l'array `routes` amb el `path` (la URL que visitarà l'usuari, per exemple `/checkout`) i el `component` (el fitxer `.vue` que s'ha de carregar). Quan l'usuari visita aquesta URL, Vue agafa el component indicat i l'incrusta automàticament on tinguem posada l'etiqueta `<RouterView />`.
+
+**2. Netejar l'`App.vue`:**
+Ara ves a `src/App.vue`. Mantenim la teva estructura base, però eliminarem el paràgraf del missatge de benvinguda temporal perquè el `<RouterView />` mostri exclusivament la nostra llista d'esdeveniments. 
+
+Substitueix el codi de `App.vue` per aquest:
 
 ```vue
 <script setup>
-// 1. Importem el component que acabem de crear
-import EventList from './components/EventList.vue';
+  import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <header>
-    <h1>🎟️ TicketFlow</h1>
-  </header>
+  <div class="app-container">
+    <header>
+      <h1>🎟️ TicketFlowUB</h1>
+    </header>
 
-  <main>
-    <EventList />
-  </main>
+    <main>
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>
-header {
-  background-color: #f8f9fa;
-  padding: 1rem;
-  text-align: center;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #ddd;
-}
-main {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
+  .app-container {
+    font-family: sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    border-bottom: 2px solid #42b883;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+  h1 {
+    color: #42b883;
+  }
 </style>
 ```
 
@@ -216,7 +250,7 @@ defineProps({
     <p><strong>Data:</strong> {{ event.data }}</p>
     <p><strong>Preu:</strong> {{ event.preu }} €</p>
     <p><strong>Places restants:</strong> {{ event.capacitat }}</p>
-    <button>Afegir a la cistella</button>
+    <button>Comprar</button>
   </div>
 </template>
 
@@ -256,6 +290,143 @@ const events = ref([]);
 ```
 
 Aquest patró de disseny us serà extremadament útil a mesura que l'aplicació vagi creixent.
+
+---
+
+### 4. Simulant l'Autenticació (Mock Service)
+
+A la Sessió 4 aprendrem a implementar un sistema d'autenticació real utilitzant tokens (JWT). Però, mentrestant, tenim un problema: com fem una compra si la nostra API requereix assignar-li un identificador d'usuari? 
+
+Per no quedar-nos bloquejats, crearem un servei "fals" (*mock service*) que ens retornarà un usuari fix. Aquesta és una pràctica molt habitual com a solució temporal durant el desenvolupament.
+
+**1. Crear el servei temporal:**
+Crea un nou fitxer anomenat `src/services/auth.js` i afegeix-hi aquest codi:
+
+```javascript
+// src/services/auth.js
+// ALERTA: Això és un servei temporal. Es substituirà a la Sessió 4.
+
+export const useAuth = () => {
+    // Simulem que ja estem loguejats
+    return {
+        user: {
+            id: 1, // IMPORTANT: Assegura't que existeix un usuari amb ID 1 a la teva BD de Django!
+            username: 'usuari_test',
+            email: 'test@ticketflow.ub'
+        }
+    };
+};
+```
+
+> **💡 Nota pel Backend:** Recorda que perquè això funcioni, has de tenir almenys un usuari creat a la base de dades de Django. Pots crear-lo ràpidament des de la terminal amb la comanda: `uv run python manage.py createsuperuser`.
+
+**2. Com utilitzar aquest usuari?**
+Quan estiguis preparant el teu codi per enviar la cistella de la compra al backend (el *Checkout* de les tasques a fer fora del laboratori), només hauràs d'importar aquesta funció per obtenir l'ID. 
+
+Aquí tens un exemple de com s'utilitzaria dins d'un component Vue:
+
+```javascript
+import { useAuth } from '../services/auth';
+import api from '../services/api';
+
+// 1. Extraiem l'usuari simulat
+const { user } = useAuth();
+
+// 2. Funció d'exemple per enviar la compra
+const finalitzarCompra = async (cistellaActual) => {
+    try {
+        const payload = {
+            usuari_id: user.id, // Inserim l'ID del nostre mock!
+            entrades: cistellaActual
+        };
+        
+        const response = await api.post('checkout/', payload);
+        console.log("Compra exitosa:", response.data);
+        
+    } catch (error) {
+        console.error("Error a la compra:", error);
+    }
+};
+```
+
+D'aquesta manera, el teu codi ja està preparat arquitectònicament. A la Sessió 4, només haurem de canviar l'interior de `auth.js` perquè faci el login real contra l'API, i la resta de la teva aplicació seguirà funcionant sense tocar ni una línia de codi!
+
+---
+
+### 5. Connectar el botó de compra amb l'API
+
+Fins ara només hem llegit dades (GET). Ara farem que el botó "Comprar" del nostre component `EventItem.vue` enviï dades al servidor (POST). 
+
+Com que encara no hem construït una cistella de la compra al *frontend* (ho farem a la Sessió 3), farem una implementació simplificada: **cada vegada que l'usuari faci clic al botó, es farà una petició a l'API per comprar directament una (1) entrada per a aquell esdeveniment.**
+
+> **⚠️ Atenció:** L'estructura exacta de les dades (el *payload*) i la URL dependran de com hàgiu dissenyat els vostres models i endpoints a la Sessió 1. L'exemple següent és genèric; l'haureu d'adaptar al vostre cas concret!
+
+Obre el fitxer `src/components/EventItem.vue` i modifica'l per afegir la lògica de la petició POST, aprofitant el nostre servei d'autenticació simulat per obtenir l'ID de l'usuari:
+
+```vue
+<script setup>
+import api from '../services/api';         
+import { useAuth } from '../services/auth'; 
+
+const props = defineProps({
+    event: {
+        type: Object,
+        required: true
+    }
+});
+
+const comprarEntrada = async () => {
+  const { user } = useAuth(); 
+
+  try {
+    // 1. Primer, creem una nova Compra buida per a l'usuari
+    const respostaCompra = await api.post('compres/', { 
+        usuari: user.id 
+    });
+    
+    // N'extraiem l'ID que ens acaba de retornar la base de dades
+    const novaCompraId = respostaCompra.data.id; 
+
+    // 2. Després, preparem les dades de l'entrada vinculant-la a la nova compra
+    const payloadEntrada = {
+      compra: novaCompraId,
+      esdeveniment: props.event.id,
+      quantitat: 1
+    };
+
+    // 3. Finalment, creem l'entrada
+    await api.post('entrades/', payloadEntrada);
+    
+    alert(`🎉 Entrada comprada amb èxit per a: ${props.event.titol}`);
+    
+  } catch (error) {
+    console.error("Error en la compra:", error);
+    alert("❌ Hi ha hagut un error en processar la compra.");
+  }
+};
+</script>
+
+<template>
+  <div class="event-card">
+    <img v-if="event.imatge_url" :src="event.imatge_url" alt="Cartell" class="event-img" />
+
+    <h3>{{ event.titol }}</h3>
+    <p><strong>Data:</strong> {{ event.data }}</p>
+    <p><strong>Preu:</strong> {{ event.preu }} €</p>
+    <p><strong>Places restants:</strong> {{ event.capacitat }}</p>
+    
+    <button @click="comprarEntrada">Comprar</button>
+  </div>
+</template>
+
+<style scoped>
+  .event-card { border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+  .event-img { width: 100%; border-radius: 4px; margin-bottom: 10px; }
+</style>
+```
+
+**Què hem canviat exactament?**
+Hem modificat la funció vinculada a l'esdeveniment `@click` del botó perquè ara faci dues tasques asíncrones en cadena. Com que l'API requereix que tota entrada pertanyi a una comanda, primer fem un `POST` a `/compres/` per generar l'identificador de la nova compra, i just després utilitzem aquest ID generat per fer un segon `POST` a `/entrades/` associant-hi l'esdeveniment.
 
 ---
 
