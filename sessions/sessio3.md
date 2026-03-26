@@ -160,16 +160,16 @@ Ara substituirem el contingut de l'`App.vue` per afegir-hi el menú de navegaci�
       
       <nav class="navbar">
         <div class="links">
-          <RouterLink to="/">Inici</RouterLink>
-          <RouterLink to="/admin">Administració</RouterLink>
-          <RouterLink to="/orders">Compres</RouterLink>
+          <RouterLink to="/" class="nav-link">Inici</RouterLink>
+          <RouterLink to="/admin" class="nav-link">Administració</RouterLink>
+          <RouterLink to="/orders" class="nav-link">Compres</RouterLink>
           
-          <RouterLink to="/cart" class="icon-link">
+          <RouterLink to="/cart" class="nav-link">
             <span class="material-symbols-outlined">shopping_cart</span>
             Cistella
           </RouterLink>
 
-          <RouterLink to="/profile" class="icon-link">
+          <RouterLink to="/profile" class="nav-link">
             <span class="material-symbols-outlined">account_circle</span>
             Perfil
           </RouterLink>
@@ -201,10 +201,10 @@ Ara substituirem el contingut de l'`App.vue` per afegir-hi el menú de navegaci�
     margin-bottom: 15px; /* Afegim una mica d'espai amb el menú */
   }
   
-  /* Estils de la nova barra de navegació */
+  /* Estils de la barra de navegació */
   .navbar { 
     display: flex; 
-    justify-content: center; /* Centrem el menú com el títol */
+    justify-content: center; 
     background: #f8f9fa; 
     padding: 10px; 
     border-radius: 8px;
@@ -212,24 +212,33 @@ Ara substituirem el contingut de l'`App.vue` per afegir-hi el menú de navegaci�
   .links { 
     display: flex; 
     align-items: center; 
-    gap: 1.5rem; 
+    gap: 0.5rem; /* Espai entre botons */
+    flex-wrap: wrap; /* Per si la pantalla és petita, que baixin a la línia inferior */
+    justify-content: center;
   }
-  .links a { 
+  
+  /* Estil comú per a TOTS els enllaços */
+  .nav-link { 
     color: #333; 
     text-decoration: none; 
     display: flex; 
     align-items: center; 
-    gap: 0.3rem; 
+    gap: 0.4rem; 
+    padding: 0.5rem 1rem;
+    border-radius: 20px; /* Forma de píndola per a tots */
+    transition: background-color 0.2s, color 0.2s;
   }
-  /* Estil quan estem a la pàgina activa */
-  .links a.router-link-active { 
+  
+  /* Efecte en passar el ratolí per sobre */
+  .nav-link:hover {
+    background-color: #e9ecef;
+  }
+
+  /* Estil quan estem a la pàgina activa (es posarà verd) */
+  .nav-link.router-link-active { 
     font-weight: bold; 
-    color: #42b883; 
-  }
-  .icon-link { 
-    background: #e9ecef; 
-    padding: 0.4rem 0.8rem; 
-    border-radius: 20px; 
+    color: white;
+    background-color: #42b883;
   }
 </style>
 ```

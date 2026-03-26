@@ -68,6 +68,6 @@ En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
 | 2 | 13/04/26| Frontend, Axios i Reactivitat |  |
 | 3 | 27/04/26 | Navegació (Router) i Cistella (Pinia) ||
 | 4 | 04/05/26 | Autenticació i Autorització |  | |
-| 5 | 11/05/26| Finalització de Compres i Testing | | |
-| 6 | 18/05/26 | |  | |
-| 7 | 25/05/26 | Sessió de Proves i Desplegament |  | |
+| 5 | 11/05/26 | Finalització de Compres i Testing | | |
+| 6 | 18/05/26 | Desplegament i tasques asíncrones |  | |
+| 7 | 25/05/26 | Sessió de Proves |  | |
