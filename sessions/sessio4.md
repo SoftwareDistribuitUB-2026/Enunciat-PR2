@@ -1,6 +1,6 @@
 # Sessió 4: Autenticació JWT i Control d'Accés (Backend i Frontend)
 
-Fins ara hem construït una aplicació oberta, però en el món real necessitem saber qui està utilitzant el nostre sistema per permetre-li fer certes accions o denegar-n'hi d'altres. En aquesta sessió donarem identitat als nostres usuaris mitjançant **JSON Web Tokens (JWT)**. Connectarem el nostre backend perquè emeti i validi aquests *tokens*, i prepararem el frontend per gestionar l'inici de sessió de forma segura.
+Fins ara hem construït una aplicació oberta, però en el món real necessitem saber qui està utilitzant el nostre sistema per permetre-li fer certes accions o denegar-n'hi d'altres. En aquesta sessió donarem identitat als nostres usuaris mitjançant **JSON Web Tokens (JWT)**. Connectarem el nostre backend perquè emeti i validi aquests *tokens*, i prepararem el frontend per gestionar l'inici de sessió de forma segura, i finalment, aprendrem a filtrar els resultats de l'API segons l'usuari.
 
 **Objectius de la sessió:**
 
@@ -11,6 +11,7 @@ Fins ara hem construït una aplicació oberta, però en el món real necessitem 
 5.  Configurar el client HTTP per adjuntar automàticament les credencials a totes les peticions segures.
 6.  Protegir la navegació del frontend restringint l'accés a vistes privades.
 7.  Implementar un mecanisme de renovació automàtica de credencials (Refresh Token) de forma transparent per a l'usuari.
+8.  Implementar el filtratge de dades al backend mitjançant Query Parameters per mostrar llistes personalitzades (ex: "Els meus esdeveniments").
 
 **Guies relacionades:**
 Abans o durant la realització d'aquesta sessió, us recomanem consultar:
@@ -461,11 +462,78 @@ export default api;
 
 -----
 
-## PART 4: Tasques fora del laboratori (Treball Autònom)
+## PART 4: Filtratge de Resultats (Query Parameters)
 
-Durant la sessió hem protegit únicament el model d'Usuaris. Ara és el vostre torn d'aplicar la seguretat a la resta de l'aplicació per fer-la totalment robusta i preparar el terreny per al procés de compra.
+Quan treballem amb APIs, sovint no volem recuperar *tots* els elements d'una base de dades. Volem poder fer preguntes específiques com ara: *"Dona'm els esdeveniments, però només els que he creat jo"*. Això s'aconsegueix enviant paràmetres a la URL (ex: `/api/v1/events/?meus=true`).
 
-### Taula de Permisos Recomanats
+Anem a ensenyar al nostre backend a llegir aquests paràmetres i a modificar la consulta a la base de dades.
+
+### 4.1. Modificant el `get_queryset` al Backend
+
+Aneu al vostre `views.py` i busqueu l'`EventViewSet`. Per defecte, la variable `queryset = Event.objects.all()` retorna sempre tot el catàleg. Per fer-ho dinàmic, hem de sobreescriure el mètode `get_queryset()`:
+
+```python
+# views.py
+from rest_framework import viewsets
+from .models import Event
+from .serializers import EventSerializer
+
+class EventViewSet(viewsets.ModelViewSet):
+    # La consulta per defecte (fallback)
+    queryset = Event.objects.all()
+    serializer_class = EventSerializer
+    
+    # ... els vostres permisos (get_permissions) ...
+
+    def get_queryset(self):
+        """
+        Sobreescrivim la consulta per defecte per permetre el filtratge
+        mitjançant paràmetres a la URL (?clau=valor).
+        """
+        # 1. Agafem la consulta base (tots els esdeveniments)
+        queryset = super().get_queryset()
+        
+        # 2. Llegim si ens passen el paràmetre '?meus=true'
+        filtre_meus = self.request.query_params.get('meus', None)
+        
+        # 3. Apliquem el filtre només si ens ho demanen I l'usuari està logat
+        if filtre_meus == 'true' and self.request.user.is_authenticated:
+            # Filtrem perquè només retorni els que tenen com a creador l'usuari actual
+            queryset = queryset.filter(creador=self.request.user)
+            
+        return queryset
+```
+
+Si ara aneu al navegador (o proveu amb `curl`) i demaneu `http://localhost:8000/api/v1/events/?meus=true` (tenint el token vàlid enviat a la capçalera), veureu que la llista només us retorna els vostres esdeveniments\!
+
+### 4.2. Com ho demanem des del Frontend?
+
+Al vostre frontend, quan vulgueu recuperar aquesta llista filtrada (per exemple, per a un panell d'administració de l'usuari), només heu de passar l'objecte `params` a la crida d'Axios. L'interceptor que hem creat a la Part 2 ja s'encarregarà d'injectar el token perquè el backend sàpiga qui sou.
+
+```javascript
+// Dins del vostre component Vue o Store de Pinia
+const fetchMeusEvents = async () => {
+  try {
+    const response = await api.get('events/', {
+      params: { 
+        meus: 'true' // Axios converteix això automàticament a ?meus=true
+      }
+    });
+    // Guardem la resposta a la nostra variable reactiva
+    meusEvents.value = response.data;
+  } catch (error) {
+    console.error("Error al carregar els esdeveniments de l'usuari", error);
+  }
+};
+```
+
+-----
+
+## PART 5: Tasques fora del laboratori (Treball Autònom)
+
+Durant la sessió hem protegit únicament el model d'Usuaris i hem creat el nostre primer filtre dinàmic. Ara és el vostre torn d'aplicar aquests conceptes a la resta de l'aplicació per fer-la totalment robusta i preparar el terreny per al procés de compra.
+
+### A) Taula de Permisos Recomanats
 
 Apliqueu aquestes regles utilitzant el mètode `get_permissions()` als vostres respectius ViewSets:
 
@@ -478,10 +546,18 @@ Apliqueu aquestes regles utilitzant el mètode `get_permissions()` als vostres r
 | **Compra / Order** | POST | Fer un pagament | `IsAuthenticated` |
 | **Compra / Order** | GET | Historial de compres | `IsAuthenticated` + `IsOwnerOrAdmin` |
 
-### Llista de Tasques:
+### B) Llista de Tasques: Autenticació i Permisos
 
 1.  **Vincular Esdeveniments i Usuaris:** Aneu al vostre model `Event` i afegiu un camp `creador = models.ForeignKey(User, on_delete=models.CASCADE)`. Executeu les migracions (`makemigrations` i `migrate`).
-2.  **Crear el permís `IsOwnerOrAdmin`:** Al fitxer `permissions.py`, creeu aquesta nova regla. És gairebé idèntica a `IsSelfOrAdmin`, però en lloc de comparar l'usuari amb l'objecte (`obj == request.user`), heu de comparar l'usuari amb el creador de l'objecte (`obj.creador == request.user`).
-3.  **Aplicar la taula de permisos al Backend:** Aneu al vostre `EventViewSet` (i posteriors) i implementeu la funció `get_permissions()` com heu après a fer amb els usuaris.
-4.  **Actualitzar els Tests:** Tots els tests de creació d'esdeveniments o edició de dades fallaran. Modifiqueu-los perquè utilitzin `self.client.force_authenticate(user=usuari_prova)` abans de fer les accions.
-5.  **Registre d'Usuaris al Frontend:** Creeu una vista `RegisterView.vue` amb un formulari que faci una crida POST (sense token) a l'endpoint de creació d'usuaris perquè els visitants es puguin donar d'alta.
+2.  **Crear el permís `IsOwnerOrAdmin`:** Al fitxer `permissions.py`, creeu aquesta nova regla. És gairebé idèntica a `IsSelfOrAdmin`, però compareu l'usuari amb el creador de l'objecte (`obj.creador == request.user`).
+3.  **Aplicar la taula de permisos al Backend:** Aneu al vostre `EventViewSet` (i posteriors) i implementeu la funció `get_permissions()`.
+4.  **Actualitzar els Tests:** Tots els tests de creació d'esdeveniments fallaran. Modifiqueu-los perquè utilitzin `self.client.force_authenticate(user=usuari_prova)` abans de fer les accions.
+5.  **Registre d'Usuaris al Frontend:** Creeu una vista `RegisterView.vue` amb un formulari que faci una crida POST (sense token) a l'endpoint de creació d'usuaris.
+
+### C) Llista de Tasques: Filtratge Avançat d'Esdeveniments
+
+Aprofiteu la tècnica apresa a la **PART 4** per afegir nous filtres a la funció `get_queryset()` de l'`EventViewSet` i connecteu-los al frontend:
+
+6.  **Filtre d'Esdeveniments Futurs:** Afegiu la capacitat d'interceptar el paràmetre `?futurs=true`. Si està activat, utilitzeu l'ORM de Django per filtrar els esdeveniments on la data de celebració sigui més gran o igual a la data d'avui (`data__gte=timezone.now()`). Així la botiga no mostrarà esdeveniments passats per defecte.
+7.  **Filtre d'Entrades Disponibles:** Afegiu la capacitat d'interceptar el paràmetre `?disponibles=true`. Si està activat, l'ORM només ha de retornar els esdeveniments on l'estoc d'entrades sigui més gran que zero (`entrades_disponibles__gt=0`).
+8.  **Interfície d'Usuari:** A la llista principal d'esdeveniments del Frontend (la botiga), afegiu un *checkbox* o interruptor per activar i desactivar el filtre "Només entrades disponibles". Quan l'usuari el cliqui, s'ha de tornar a cridar a l'API afegint el paràmetre als `params` d'Axios.
