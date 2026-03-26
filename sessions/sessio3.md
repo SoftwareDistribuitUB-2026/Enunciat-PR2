@@ -505,3 +505,38 @@ Ara que teniu la interfície completa i l'estat local funcionant, és el moment 
    * A `CartView.vue`, el botó "Procedir al Pagament" ha de fer una petició `POST` a l'endpoint **`/api/v1/checkout/`** que vau crear al treball autònom de la Sessió 2. 
    * Recordeu utilitzar el servei temporal `useAuth()` per obtenir l'usuari actual i muntar el *payload* correctament amb els elements de `cartStore.items`.
    * Si la compra és exitosa (Status 201), buideu la cistella cridant a `cartStore.clearCart()` i redirigiu l'usuari a la vista `OrdersView` utilitzant `router.push('/orders')`.
+
+
+### Guia per a l'Edició d'Esdeveniments: Conceptes Clau
+
+Per implementar el flux d'edició (des que fem clic al botó d'editar fins que guardem el formulari), necessitareu combinar tres grans conceptes de Vue i Vue Router. Aquí teniu les pistes per entendre com encaixa cada peça:
+
+#### 1. Comunicació de baix a dalt (`$emit`)
+
+El vostre component `ModifiableEventItem` és el que té els botons d'"Editar" i "Eliminar", però **no hauria de fer cap crida a l'API ni canviar de pàgina**. La seva única feina és avisar el component pare (la llista d'esdeveniments) de què està passant.
+
+* **Al component fill (`ModifiableEventItem`):** Utilitzeu la funció `defineEmits(['edit', 'delete'])`. Quan l'usuari cliqui el botó, utilitzeu la funció `emit` per llançar l'avís i adjuntar-hi l'ID de l'esdeveniment (ex: `emit('edit', props.event.id)`).
+* **Al component pare (`AdminEventList`):** Quan crideu al fill a l'HTML, heu d'estar atents a aquests avisos utilitzant l'arrova: `@edit="funcioPerEditar"` i `@delete="funcioPerEliminar"`. La funció que definiu rebrà automàticament l'ID que ha enviat el fill.
+
+#### 2. Navegació programàtica (`router.push`)
+
+Quan el component pare rep l'avís d'eliminar, simplement fa una crida `DELETE` a l'API. Però quan rep l'avís d'**editar**, el que volem és canviar de pàgina per mostrar un formulari. Com ho fem des de JavaScript si no tenim un `<router-link>`?
+
+* Necessiteu importar `useRouter` des de `vue-router`.
+* Aquesta eina permet "empènyer" (push) l'usuari cap a una nova URL des de dins d'una funció.
+* **La pista:** Dins la vostra `funcioPerEditar(id)`, haureu d'utilitzar una ordre com `router.push('/admin/events/' + id + '/edit')`.
+
+#### 3. Rutes Dinàmiques i lectura de paràmetres
+
+Si envieu l'usuari a una URL com `/admin/events/5/edit`, el Vue Router necessita saber què fer amb aquest "5". No podem crear una ruta al fitxer de configuració per a cada número possible.
+
+* **Al `router/index.js`:** Quan definiu el `path` per al component del formulari d'edició, heu d'utilitzar els dos punts (`:`) per indicar que una part de la URL serà una variable. Per exemple: `path: '/la-teva-ruta/:id/edit'`.
+* **Al component del formulari (`EventEditView`):** Quan aquest component es carregui, necessita saber quin és l'esdeveniment que ha d'editar per poder anar a l'API a demanar les dades i omplir el formulari. 
+* **Com llegim aquest número?** Així com `useRouter` serveix per *moure's*, necessitareu importar `useRoute` per *llegir on som*. Tindreu accés al valor del paràmetre a través de `route.params.id`.
+
+#### El flux recomanat que heu d'aconseguir:
+1.  Clic al botó Editar → S'emet l'ID.
+2.  El pare rep l'ID i fa un `router.push()` cap a la URL d'edició.
+3.  Es carrega el nou component del formulari, que llegeix l'ID de la URL amb `route.params.id`.
+4.  En el `onMounted`, feu un `GET` a l'API demanant les dades d'aquell ID i ompliu les variables reactives del formulari (`v-model`).
+5.  En fer el `submit` del formulari, feu un `PUT` a l'API amb les noves dades i torneu a la llista.
