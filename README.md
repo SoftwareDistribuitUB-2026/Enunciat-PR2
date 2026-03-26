@@ -65,8 +65,9 @@ En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
 | Sessió | Data (Setmana) | Tema | Guia | Enllaços |
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | 23/03/26 | Backend Foundation (Models i DRF) | [Sessió 1](sessions/sessio1.md) | [L'ORM de Django i els Models de Dades](../guies/django_models_orm.md)<br>[Creant APIs amb Django REST Framework](../guies/drf_rest.md)<br>[Flux de treball amb Git i CI/CD](../guies/flux_treball_git_ci.md)<br>[Configuració i utilització de pytest amb Django i DRF](../guies/pytest_django_drf.md) |
-| 2 | 06/04/26 | Frontend, Axios i Reactivitat |  |
-| 3 | 13/04/26 | Navegació (Router) i Cistella (Pinia) ||
-| 4 | 27/04/26 | Autenticació i Autorització |  | |
-| 5 | 04/05/26 | Finalització de Compres i Testing | | |
-| 6 | 11/05/26 | Sessió de Proves i Desplegament |  | |
+| 2 | 13/04/26| Frontend, Axios i Reactivitat |  |
+| 3 | 27/04/26 | Navegació (Router) i Cistella (Pinia) ||
+| 4 | 04/05/26 | Autenticació i Autorització |  | |
+| 5 | 11/05/26| Finalització de Compres i Testing | | |
+| 6 | 18/05/26 | |  | |
+| 7 | 25/05/26 | Sessió de Proves i Desplegament |  | |
