@@ -15,6 +15,7 @@ Abans o durant la realització d'aquesta sessió, és **imprescindible** que don
 * 📖 [Validació de dades](../guies/serialitzadors_validacio_dades.md): Per entendre com podem validar les dades d'entrada en els serialitzadors.
 * 📖 [Serialitzadors aniuats](../guies/serialitzadors_niuats.md): Per entendre com podem aniuar serialitzadors.
 * 📖 [Gestió d'errors i operacions atòmiques](../guies/drf_gestio_errors.md): Per veure com gestionar els errors en DRF i com realitzar operacions atòmiques.
+* 📖 [Debugar Codi Vue.js](../guies/debug_vue.md): Per veure com debugar codi Vue.
 
 ---
 
