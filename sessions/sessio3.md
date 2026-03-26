@@ -145,42 +145,92 @@ export default router
 ```
 
 ### 1.4. La Barra de Navegació a `App.vue`
-Substituïu el contingut principal de `App.vue` per incloure els enllaços a totes les seccions i utilitzar les icones de *Material Symbols* per a la Cistella i el Perfil:
+
+Ara substituirem el contingut de l'`App.vue` per afegir-hi el menú de navegació. Fixeu-vos que hem d'importar el component `RouterLink` a la part superior per poder crear els enllaços cap a les noves vistes.
 
 ```vue
+<script setup>
+  import { RouterView, RouterLink } from 'vue-router'
+</script>
+
 <template>
-  <header>
-    <nav class="navbar">
-      <div class="logo">🎟️ TicketFlow</div>
-      <div class="links">
-        <router-link to="/">Inici</router-link>
-        <router-link to="/admin">Administració</router-link>
-        <router-link to="/orders">Compres</router-link>
-        
-        <router-link to="/cart" class="icon-link">
-          <span class="material-symbols-outlined">shopping_cart</span>
-          Cistella
-        </router-link>
+  <div class="app-container">
+    <header>
+      <h1>🎟️ TicketFlowUB</h1>
+      
+      <nav class="navbar">
+        <div class="links">
+          <RouterLink to="/">Inici</RouterLink>
+          <RouterLink to="/admin">Administració</RouterLink>
+          <RouterLink to="/orders">Compres</RouterLink>
+          
+          <RouterLink to="/cart" class="icon-link">
+            <span class="material-symbols-outlined">shopping_cart</span>
+            Cistella
+          </RouterLink>
 
-        <router-link to="/profile" class="icon-link">
-          <span class="material-symbols-outlined">account_circle</span>
-          Perfil
-        </router-link>
-      </div>
-    </nav>
-  </header>
+          <RouterLink to="/profile" class="icon-link">
+            <span class="material-symbols-outlined">account_circle</span>
+            Perfil
+          </RouterLink>
+        </div>
+      </nav>
+    </header>
 
-  <main>
-    <router-view />
-  </main>
+    <main>
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>
-.navbar { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #333; color: white; }
-.links { display: flex; align-items: center; gap: 1.5rem; }
-.links a { color: white; text-decoration: none; display: flex; align-items: center; gap: 0.3rem; }
-.links a.router-link-active { font-weight: bold; text-decoration: underline; color: #42b883; }
-.icon-link { background: rgba(255,255,255,0.1); padding: 0.4rem 0.8rem; border-radius: 20px; }
+  .app-container {
+    font-family: sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    border-bottom: 2px solid #42b883;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+  h1 {
+    color: #42b883;
+    margin-bottom: 15px; /* Afegim una mica d'espai amb el menú */
+  }
+  
+  /* Estils de la nova barra de navegació */
+  .navbar { 
+    display: flex; 
+    justify-content: center; /* Centrem el menú com el títol */
+    background: #f8f9fa; 
+    padding: 10px; 
+    border-radius: 8px;
+  }
+  .links { 
+    display: flex; 
+    align-items: center; 
+    gap: 1.5rem; 
+  }
+  .links a { 
+    color: #333; 
+    text-decoration: none; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.3rem; 
+  }
+  /* Estil quan estem a la pàgina activa */
+  .links a.router-link-active { 
+    font-weight: bold; 
+    color: #42b883; 
+  }
+  .icon-link { 
+    background: #e9ecef; 
+    padding: 0.4rem 0.8rem; 
+    border-radius: 20px; 
+  }
 </style>
 ```
 
