@@ -284,7 +284,10 @@ const handleEdit = () => {
 button { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; padding: 0.5rem 1rem; }
 </style>
 ```
-*A `AdminView.vue`, haureu de fer una petició a l'API per obtenir els esdeveniments i renderitzar-los utilitzant aquest nou `<ModifiableEventItem>` en lloc de la llista normal.*
+
+Crea una nova vista `AdminView.vue`, on haureu de fer una petició a l'API per obtenir els esdeveniments i renderitzar-los utilitzant aquest nou `<ModifiableEventItem>` en lloc de la llista normal. Us podeu inspirar en la vista inicial i el component `EventList`.
+
+**Nota:** En aquests moments estem delegant a `EventItem`, per tant tindrem el botó d'afegir a la cistella. De moment no és un problema, però podeu afegir opcions a `EventItem` per configurar com s'ha de visualitzar. De la mateixa forma, podeu utilitzar propietats en el `EventList` per mostrar els botons d'edició i no requerir un component addicional. Aquest codi és un exemple per il·lustrar l'ús d'un component dins d'un altre i facilitar la sessió.
 
 ---
 
@@ -385,11 +388,22 @@ const cartStore = useCartStore();
 
 <template>
   <div class="event-card">
-    <img v-if="event.imatge_url" :src="event.imatge_url" alt="Cartell" class="event-img" />
+    <img
+      v-if="event.imatge_url"
+      :src="event.imatge_url"
+      alt="Cartell"
+      class="event-img"
+    >
+
     <h3>{{ event.titol }}</h3>
+    <p><strong>Data:</strong> {{ event.data }}</p>
     <p><strong>Preu:</strong> {{ event.preu }} €</p>
-    
-    <button @click="cartStore.addToCart(event)" class="btn-add">
+    <p><strong>Places restants:</strong> {{ event.capacitat }}</p>
+
+    <button
+      class="btn-add"
+      @click="cartStore.addToCart(event)"
+    >
       <span class="material-symbols-outlined">add_shopping_cart</span> Afegir
     </button>
   </div>
@@ -450,13 +464,13 @@ Torneu al vostre **`App.vue`**. Ara que la cistella global existeix, podem fer q
 Modifiqueu l'enllaç de la cistella al `<template>`:
 
 ```vue
-        <router-link to="/cart" class="icon-link cart-link">
-          <span class="material-symbols-outlined">shopping_cart</span>
-          Cistella
-          <span v-if="cartStore.totalItems > 0" class="badge">
-            {{ cartStore.totalItems }}
-          </span>
-        </router-link>
+        <RouterLink to="/cart" class="icon-link">
+            <span class="material-symbols-outlined">shopping_cart</span>
+            Cistella
+            <span v-if="cartStore.totalItems > 0" class="badge">
+              {{ cartStore.totalItems }}
+            </span>
+          </RouterLink>
 ```
 
 I no oblideu importar el store a la part superior de `App.vue`:
@@ -476,7 +490,7 @@ const cartStore = useCartStore();
 Ara que teniu la interfície completa i l'estat local funcionant, és el moment de connectar les noves accions amb l'API del backend:
 
 1. **Implementar l'Eliminació i Edició (Admin):**
-   * Aneu a `ModifiableEventItem.vue` i canvieu els `console.log()` per crides reals a l'API amb Axios (`api.delete(...)` i `api.put(...)`). Emiteu un event perquè `AdminView.vue` actualitzi la llista després d'esborrar.
+   * Aneu a `ModifiableEventItem.vue` i canvieu els `console.log()` per crides reals a l'API amb Axios (`api.delete(...)` i `api.put(...)`). Llanceu un event perquè `AdminView.vue` actualitzi la llista després d'esborrar.
 
 2. **Connectar el Checkout de la Cistella (L'Endpoint de Transacció):**
    * A `CartView.vue`, el botó "Procedir al Pagament" ha de fer una petició `POST` a l'endpoint **`/api/v1/checkout/`** que vau crear al treball autònom de la Sessió 2. 
