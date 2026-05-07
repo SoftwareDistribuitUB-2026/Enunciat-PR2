@@ -67,7 +67,7 @@ En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
 | 1 | 23/03/26 | Backend Foundation (Models i DRF) | [Sessió 1](sessions/sessio1.md) | [L'ORM de Django i els Models de Dades](../guies/django_models_orm.md)<br>[Creant APIs amb Django REST Framework](../guies/drf_rest.md)<br>[Flux de treball amb Git i CI/CD](../guies/flux_treball_git_ci.md)<br>[Configuració i utilització de pytest amb Django i DRF](../guies/pytest_django_drf.md) |
 | 2 | 13/04/26| Frontend, Axios i Reactivitat | [Sessió 2](sessions/sessio2.md)  | [Introducció a Vue 3 i Composition API](../guies/introduccio_vue.md) <br>[Seguretat: CORS i CSRF](../guies/seguretat_cors_csrf.md) <br>[Validació de dades](../guies/serialitzadors_validacio_dades.md) <br>[Serialitzadors aniuats](../guies/serialitzadors_niuats.md)<br>[Gestió d'errors i operacions atòmiques](../guies/drf_gestio_errors.md) <br>[Debugar Codi Vue.js](../guies/debug_vue.md) |
 | 3 | 27/04/26 | Navegació (Router) i Cistella (Pinia) | [Sessió 3](sessions/sessio3.md) | [Emmagatzematge Local i Pinia](../guies/localstorage_pinia.md) |
-| 4 | 04/05/26 | Autenticació i Autorització |  | |
+| 4 | 04/05/26 | Autenticació i Autorització | [Sessió 4](sessions/sessio4.md) | [Conceptes de Seguretat Web](../guies/seguretat_conceptes.md)<br>[Aplicant la Seguretat al Backend](../guies/seguretat_backend_django.md)<br>[Autenticació i Dades Sensibles al Frontend](../guies/seguretat_frontend_vue.md)<br>[Entenent CORS i CSRF](../guies/seguretat_cors_csrf.md) |
 | 5 | 11/05/26 | Finalització de Compres i Testing | | |
 | 6 | 18/05/26 | Desplegament i tasques asíncrones |  | |
 | 7 | 25/05/26 | Sessió de Proves |  | |
