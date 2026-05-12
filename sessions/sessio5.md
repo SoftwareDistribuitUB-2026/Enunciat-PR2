@@ -310,7 +310,7 @@ def test_checkout_partial_unavailability_rolls_back_all(api_client, user_factory
 
 | ID | Què cal provar | Dades d'entrada | Resultat esperat |
 | :-- | :-- | :-- | :-- |
-| T01 | Usuari no autenticat intenta checkout | `POST /checkout` sense token | `403 Forbidden` |
+| T01 | Usuari no autenticat intenta checkout | `POST /checkout` sense token | `401 Unauthorized` |
 | T02 | Usuari autenticat fa compra vàlida d'1 línia | Estoc suficient | `201 Created`, compra creada i disponibilitat actualitzada |
 | T03 | Usuari autenticat fa compra vàlida de múltiples línies | Totes les línies amb estoc suficient | `201 Created`, compra creada amb total correcte i disponibilitat actualitzada |
 | T04 | Quantitat invàlida (0 o negativa) | `quantitat <= 0` | `400 Bad Request` de validació |
@@ -323,8 +323,9 @@ def test_checkout_partial_unavailability_rolls_back_all(api_client, user_factory
 | T11 | Usuari admin llista compres globals | `GET /compres/` amb admin | Veu totes les compres |
 | T12 | Integritat del total | Compra amb preus coneguts | `total` retornat coincideix amb suma de línies |
 | T13 | Crear un esdeveniment a través de l'API | `POST /api/v1/events/` amb dades vàlides | `201 Created`, esdeveniment creat correctament |
-| T14 | Consultar les compres a la vista de compres | `GET /api/v1/compres/` com a usuari autenticat | Es retornen només les compres de l'usuari connectat |
+| T14 | Consultar el llistat de compres a través de l'API | `GET /api/v1/compres/` com a usuari autenticat | Es retornen només les compres de l'usuari connectat |
 | T15 | Crear un esdeveniment amb dades incorrectes a l'API | `POST /api/v1/events/` amb camps invàlids o incomplets | `400 Bad Request` amb missatges de validació i sense crear cap esdeveniment |
+| T16 | Editar un esdeveniment sent usuari autenticat però no propietari | `PUT /api/v1/events/{id}/` amb token vàlid però sense ser el creador | `403 Forbidden` |
 
 ### 5.4. Tasques a realitzar
 
