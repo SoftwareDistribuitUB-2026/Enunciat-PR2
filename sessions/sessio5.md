@@ -135,6 +135,7 @@ class CheckoutView(APIView):
         entrades = serializer.validated_data['entrades']
 
         compra = Compra.objects.create(usuari=request.user)
+        total = 0
 
         for item in entrades:
             event = Event.objects.select_for_update().get(pk=item['esdeveniment_id'])
@@ -153,6 +154,10 @@ class CheckoutView(APIView):
                 quantitat=qty,
                 preu_unitari=event.preu,
             )
+            total += event.preu * qty
+
+        compra.total = total
+        compra.save(update_fields=['total'])
 
         output = CompraSerializer(compra)
         return Response(output.data, status=status.HTTP_201_CREATED)
@@ -240,8 +245,8 @@ from api.models import Compra
 @pytest.mark.django_db
 def test_checkout_ok_authenticated_user(api_client, user_factory, event_factory):
     user = user_factory()
-    event_a = event_factory(capacitat=10, preu='20.00')
-    event_b = event_factory(capacitat=5, preu='15.00')
+    event_a = event_factory(capacitat_maxima=10, preu='20.00')
+    event_b = event_factory(capacitat_maxima=5, preu='15.00')
 
     api_client.force_authenticate(user=user)
 
@@ -275,8 +280,8 @@ from api.models import Compra
 @pytest.mark.django_db
 def test_checkout_partial_unavailability_rolls_back_all(api_client, user_factory, event_factory):
     user = user_factory()
-    ok_event = event_factory(capacitat=10, preu='20.00')
-    failing_event = event_factory(capacitat=1, preu='50.00')
+    ok_event = event_factory(capacitat_maxima=10, preu='20.00')
+    failing_event = event_factory(capacitat_maxima=1, preu='50.00')
 
     api_client.force_authenticate(user=user)
 
@@ -317,6 +322,9 @@ def test_checkout_partial_unavailability_rolls_back_all(api_client, user_factory
 | T10 | Usuari només veu les seves compres | `GET /compres/` amb compres de diversos usuaris | Resposta filtrada només a compres pròpies |
 | T11 | Usuari admin llista compres globals | `GET /compres/` amb admin | Veu totes les compres |
 | T12 | Integritat del total | Compra amb preus coneguts | `total` retornat coincideix amb suma de línies |
+| T13 | Crear un esdeveniment a través de l'API | `POST /api/v1/events/` amb dades vàlides | `201 Created`, esdeveniment creat correctament |
+| T14 | Consultar les compres a la vista de compres | `GET /api/v1/compres/` com a usuari autenticat | Es retornen només les compres de l'usuari connectat |
+| T15 | Crear un esdeveniment amb dades incorrectes a l'API | `POST /api/v1/events/` amb camps invàlids o incomplets | `400 Bad Request` amb missatges de validació i sense crear cap esdeveniment |
 
 ### 5.4. Tasques a realitzar
 
@@ -330,7 +338,18 @@ def test_checkout_partial_unavailability_rolls_back_all(api_client, user_factory
     * Si `password` i `confirm_password` no coincideixen, no s'ha d'enviar el formulari i s'ha de mostrar un missatge d'error clar.
     * Si el `checkbox` d'acceptació no està marcat, no s'ha d'enviar el formulari i s'ha de mostrar un missatge d'error clar.
 
-3. **Verificació final i lliurament:**
+3. **Afegir nous esdeveniments a la pestanya d'administració:**
+    * A la pestanya d'administració, afegiu la funcionalitat necessària per donar d'alta nous esdeveniments.
+    * Creeu un formulari que permeti introduir les dades mínimes de l'esdeveniment (`titol`, `descripcio`, `data`, `preu`, `capacitat_maxima` i, si escau, `imatge_url`).
+    * En enviar el formulari, feu una crida `POST` a l'endpoint corresponent de l'API i actualitzeu la llista d'esdeveniments si la creació ha estat correcta.
+    * Assegureu-vos que aquesta funcionalitat només sigui accessible des de la pestanya d'administració.
+
+4. **Mostrar el llistat de compres a la vista de compres:**
+    * A la vista de compres, afegiu un apartat per consultar l'historial de compres de l'usuari autenticat.
+    * Feu una crida `GET` a l'endpoint corresponent de l'API i renderitzeu el llistat de compres amb la informació rellevant per a cada operació.
+    * Assegureu-vos que només es mostrin les compres de l'usuari connectat i que la vista s'actualitzi correctament quan es carregui la secció de compres.
+
+5. **Verificació final i lliurament:**
     * Comproveu que l'endpoint `POST /api/v1/checkout/` funciona correctament i respecta el comportament transaccional (rollback total quan calgui).
     * Executeu la bateria de proves del backend i verifiqueu que passen els casos clau del checkout.
     * Prepareu la PR setmanal amb un resum de proves executades i resultats.
