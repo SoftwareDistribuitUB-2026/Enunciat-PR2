@@ -14,6 +14,7 @@ En aquesta sessió abordem dos temes que transformen l'aplicació d'un prototip 
 
 * 📖 [Tasques Asíncrones i Programades a Django](../guies/tasques_asincrones.md)
 * 📖 [Entorns d'Execució: Desenvolupament vs Producció (Docker)](../guies/docker_dev_vs_prod.md)
+* 📖 [Docker Desktop a Windows (Aules)](../guies/docker_desktop_windows.md)
 
 ---
 
@@ -330,6 +331,16 @@ docker compose down -v
 ```
 
 > ⚠️ **Compte amb `-v`:** Elimina tots els volums i, per tant, totes les dades de la base de dades.
+
+### 2.6. Validació a les aules Windows (prova de xarxa)
+
+Per validar que Docker Desktop funciona correctament als PCs de l'aula i que un servei en contenidor és accessible des d'altres equips, feu una prova curta abans de continuar:
+
+1. Seguiu la mini guia [Docker Desktop a Windows (Aules)](../guies/docker_desktop_windows.md).
+2. Aixequeu el `compose.yml` simple (`traefik + nginx`) i comproveu localment `http://localhost`.
+3. Identifiqueu la IP del PC Windows (amb `ipconfig`) i obriu `http://<IP_DEL_PC_WINDOWS>` des d'un altre ordinador de la mateixa xarxa.
+
+Si aquesta prova funciona, teniu validats tres punts clau: Docker Desktop operatiu, publicació de ports al host i connectivitat entre màquines de l'aula.
 
 ---
 
