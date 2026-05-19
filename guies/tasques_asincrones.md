@@ -60,6 +60,47 @@ TASKS = {
 
 Un procés separat (un *worker* que aixequem a la terminal amb una comanda de `manage.py`) anirà llegint aquesta taula i executant les tasques una per una en segon pla.
 
+### Exemple pràctic: enviar correu de confirmació per consola
+
+Per provar l'enviament de correu en local sense enviar emails reals, configura el backend de correu de Django perquè escrigui els missatges a la terminal:
+
+```python
+# settings.py
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "no-reply@entrades.local"
+```
+
+Defineix la tasca asíncrona:
+
+```python
+# api/tasks.py
+from django.core.mail import send_mail
+from django.tasks import task
+
+
+@task
+def enviar_correu_confirmacio(compra_id: int) -> None:
+    send_mail(
+        subject=f"Confirmació de compra #{compra_id}",
+        message=(
+            "Hem rebut la teva compra correctament.\\n"
+            f"ID de compra: {compra_id}\\n"
+            "Gràcies per confiar en nosaltres."
+        ),
+        from_email=None,
+        recipient_list=["client@example.com"],
+        fail_silently=False,
+    )
+```
+
+I encua-la des de la vista després de desar la compra:
+
+```python
+enviar_correu_confirmacio.enqueue(compra.id)
+```
+
+Quan el `db_worker` executi la tasca, veuràs el correu imprès per consola (subject, destinataris i cos).
+
 ## 3. Tasques programades (Cron Jobs)
 
 Un altre cas d'ús molt comú són les tasques que no depenen del clic d'un usuari, sinó del temps. En el nostre projecte, podríem voler un procés que s'executi cada nit a les 00:00h per buscar esdeveniments propers amb poques vendes i aplicar-los un descompte (Preus Dinàmics).

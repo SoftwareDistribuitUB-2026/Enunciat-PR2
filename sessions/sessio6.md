@@ -17,7 +17,7 @@ En aquesta sessió abordem dos temes que transformen l'aplicació d'un prototip 
 
 ---
 
-## PART 1 (In-lab): Tasques en segon pla amb Django 6
+## 1. Tasques en segon pla amb Django 6
 
 ### 1.1. El problema que volem resoldre
 
@@ -41,7 +41,7 @@ POST /api/v1/checkout/
 
 ### 1.2. Tasques natives a Django 6
 
-A partir de Django 6, el framework inclou el mòdul `django.tasks` de forma nativa. Tanmateix, Django **no proporciona cap worker integrat ni un backend de base de dades**; les úniques implementacions incloses (`ImmediateBackend` i `DummyBackend`) són per a desenvolupament i tests. Per a un entorn real (amb una cua persistent a la BD i un worker), cal instal·lar el paquet `django-tasks-db`.
+ A partir de Django 6, el framework inclou el mòdul `django.tasks` de forma nativa. Tanmateix, Django **no proporciona cap worker integrat ni un backend de base de dades**; les úniques implementacions incloses (`ImmediateBackend` i `DummyBackend`) són per a desenvolupament i tests. Per a un entorn real (amb una cua persistent a la BD i un worker), cal instal·lar el paquet `django-tasks-db`.
 
 #### Instal·lació del paquet
 
@@ -76,14 +76,25 @@ El backend de base de dades emmagatzema les tasques pendents en una taula pròpi
 uv run python manage.py migrate
 ```
 
-### 1.3. Exemple pràctic: confirmació de compra (tasca fictícia)
+### 1.3. Exemple pràctic: confirmació de compra (enviament real per consola)
 
-Creem un fitxer `tasks.py` a l'aplicació de backend per definir la tasca. Utilitzem `time.sleep()` per simular el temps que trigaria una operació real (generar un PDF, cridar un servei extern d'enviament de correus, etc.):
+Per poder provar l'enviament de correu sense enviar cap email real, configurarem el backend de correu de Django en mode consola. Això fa que el contingut del missatge es mostri per terminal.
+
+Primer, afegiu aquesta configuració a `settings.py`:
+
+```python
+# settings.py
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "no-reply@entrades.local"
+```
+
+Ara, creeu un fitxer `tasks.py` a l'aplicació de backend per definir una tasca que enviï un correu de confirmació:
 
 ```python
 # api/tasks.py
-import time
 import logging
+
+from django.core.mail import send_mail
 
 from django.tasks import task
 
@@ -92,21 +103,25 @@ logger = logging.getLogger(__name__)
 
 @task
 def enviar_confirmacio_compra(compra_id: int) -> None:
-    """Tasca en segon pla: simula la generació del PDF i l'enviament del correu."""
-    logger.info("[TASK] Iniciant confirmació per a la compra %d", compra_id)
+  """Tasca en segon pla: envia un correu de confirmació (backend consola)."""
+  logger.info("[TASK] Iniciant confirmació per a la compra %d", compra_id)
 
-    # Simula la generació d'un PDF (operació costosa)
-    time.sleep(5)
-    logger.info("[TASK] PDF generat per a la compra %d", compra_id)
+  send_mail(
+    subject=f"Confirmació de compra #{compra_id}",
+    message=(
+      "Hem rebut la teva compra correctament.\\n"
+      f"ID de compra: {compra_id}\\n"
+      "Gràcies per confiar en nosaltres."
+    ),
+    from_email=None,
+    recipient_list=["client@example.com"],
+    fail_silently=False,
+  )
 
-    # Simula l'enviament d'un correu electrònic
-    time.sleep(3)
-    logger.info("[TASK] Correu enviat per a la compra %d", compra_id)
-
-    logger.info("[TASK] Confirmació completada per a la compra %d", compra_id)
+  logger.info("[TASK] Correu de confirmació generat per consola per a la compra %d", compra_id)
 ```
 
-> **Per fer-ho real:** En un projecte real, substituiríeu els `time.sleep()` per l'ús d'una llibreria com `reportlab` per generar PDFs i `django.core.mail.send_mail` per enviar correus. La lògica de tasques és idèntica.
+> **Nota:** Amb `console.EmailBackend`, no s'envia cap correu extern: el missatge apareix als logs de la terminal on corre el worker.
 
 ### 1.4. Encuar la tasca des de la vista de checkout
 
@@ -192,7 +207,7 @@ curl -X POST http://localhost:8000/api/v1/checkout/ \
 
 **Observeu:**
 * La **Terminal 1** mostra la resposta `HTTP 201` en menys d'un segon.
-* La **Terminal 2** mostra els missatges `[TASK] Iniciant...`, `[TASK] PDF generat...` i `[TASK] Correu enviat...` durant els 8 segons que dura la tasca.
+* La **Terminal 2** mostra els missatges `[TASK] Iniciant...` i, a continuació, el correu complet (assumpte, destinatari i cos) imprès per consola.
 
 Sense el worker, la tasca queda a la cua de la base de dades però **mai s'executa**. Podeu comprovar-ho consultant la taula de tasques a la base de dades.
 
@@ -207,7 +222,7 @@ La crida a `enviar_confirmacio_compra(compra.id)` ja es troba **fora** del bloc 
 
 ---
 
-## PART 2 (In-lab): Desplegament amb Docker Compose
+## 2. Desplegament amb Docker Compose
 
 ### 2.1. Arquitectura del sistema en producció
 
@@ -318,12 +333,12 @@ docker compose down -v
 
 ---
 
-## PART 3: Tasques fora del laboratori (Treball Autònom)
+## 3. Tasques fora del laboratori (Treball Autònom)
 
 ### 3.1. Tasques a realitzar
 
 1. **Implementar la tasca de confirmació real:**
-    * Substituïu els `time.sleep()` de `enviar_confirmacio_compra` per la lògica real.
+  * Partiu de l'exemple amb backend de consola i adapteu `enviar_confirmacio_compra` a una implementació real.
     * Opció A (recomanada): Afegiu el proveïdor de correu de Django (`EMAIL_BACKEND` a `settings.py`) i useu `send_mail` per enviar un correu en text pla amb el resum de la compra.
     * Opció B: Genereu un text de confirmació amb les dades de la compra i deseu-lo en un fitxer de log persistent.
 
