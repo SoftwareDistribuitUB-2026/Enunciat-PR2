@@ -22,7 +22,41 @@ La solució és fer només el més ràpid i crític (guardar la compra) de forma
 
 A partir de Django 6, el framework inclou suport natiu per a l'execució de tasques en segon pla utilitzant la mateixa base de dades del projecte com a cua de missatges (ideal per a desenvolupament i projectes de mida mitjana).
 
-Per definir una tasca que s'ha d'executar fora del cicle HTTP, utilitzem un decorador especial (consulta la documentació oficial per veure la sintaxi exacta de la versió que estem utilitzant). Quan crides aquesta funció des del teu ViewSet, en lloc d'executar-se al moment, s'afegeix a una taula de la base de dades. 
+A partir de Django 6, el framework inclou el mòdul `django.tasks` de forma nativa per a la definició i l'encuament de tasques en segon pla. Tanmateix, Django **no inclou cap worker ni backend de base de dades integrat**; els backends inclosos (`ImmediateBackend` i `DummyBackend`) són per a desenvolupament i tests, respectivament.
+
+Per definir una tasca que s'ha d'executar fora del cicle HTTP, s'utilitza el decorador `@task` del mòdul `django.tasks`. Per encuar-la, es crida el mètode `.enqueue()` sobre la funció decorada (en lloc de cridar-la directament):
+
+```python
+from django.tasks import task
+
+@task
+def enviar_correu_confirmacio(compra_id: int) -> None:
+    # ... lògica de l'enviament ...
+    pass
+
+# Des d'una vista, per encuar (no bloqueig):
+enviar_correu_confirmacio.enqueue(compra_id)
+```
+
+Per tenir una cua persistent a la base de dades i un worker que l'executi, cal instal·lar el paquet de tercers **`django-tasks-db`**:
+
+```bash
+uv add django-tasks-db
+```
+
+```python
+# settings.py
+INSTALLED_APPS = [
+    # ...
+    "django_tasks_db",
+]
+
+TASKS = {
+    "default": {
+        "BACKEND": "django_tasks_db.DatabaseBackend",
+    }
+}
+```
 
 Un procés separat (un *worker* que aixequem a la terminal amb una comanda de `manage.py`) anirà llegint aquesta taula i executant les tasques una per una en segon pla.
 

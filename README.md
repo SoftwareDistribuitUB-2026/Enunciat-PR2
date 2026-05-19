@@ -69,5 +69,5 @@ En les diferents sessions s'estableixen els objectius. A mode de resum, tenim:
 | 3 | 27/04/26 | Navegació (Router) i Cistella (Pinia) | [Sessió 3](sessions/sessio3.md) | [Emmagatzematge Local i Pinia](../guies/localstorage_pinia.md) |
 | 4 | 04/05/26 | Autenticació i Autorització | [Sessió 4](sessions/sessio4.md) | [Conceptes de Seguretat Web](../guies/seguretat_conceptes.md)<br>[Aplicant la Seguretat al Backend](../guies/seguretat_backend_django.md)<br>[Autenticació i Dades Sensibles al Frontend](../guies/seguretat_frontend_vue.md)<br>[Entenent CORS i CSRF](../guies/seguretat_cors_csrf.md) |
 | 5 | 11/05/26 | Finalització de Compres i Testing | [Sessió 5](sessions/sessio5.md) | [Gestió d'errors i operacions atòmiques](../guies/drf_gestio_errors.md)<br>[Configuració i utilització de pytest amb Django i DRF](../guies/pytest_django_drf.md)<br>[Aplicant la Seguretat al Backend](../guies/seguretat_backend_django.md)<br>[Creant APIs amb Django REST Framework](../guies/drf_rest_apis.md) |
-| 6 | 18/05/26 | Desplegament i tasques asíncrones |  | |
+| 6 | 18/05/26 | Desplegament i tasques asíncrones | [Sessió 6](sessions/sessio6.md) | [Tasques Asíncrones i Programades a Django](../guies/tasques_asincrones.md)<br>[Entorns d'Execució: Desenvolupament vs Producció (Docker)](../guies/docker_dev_vs_prod.md) |
 | 7 | 25/05/26 | Sessió de Proves |  | |
