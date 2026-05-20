@@ -15,6 +15,7 @@ En aquesta sessió abordem dos temes que transformen l'aplicació d'un prototip 
 * 📖 [Tasques Asíncrones i Programades a Django](../guies/tasques_asincrones.md)
 * 📖 [Entorns d'Execució: Desenvolupament vs Producció (Docker)](../guies/docker_dev_vs_prod.md)
 * 📖 [Docker Desktop a Windows (Aules)](../guies/docker_desktop_windows.md)
+* 📖 [Cadenes de Tasques amb Celery i django_q2](../guies/cadenes_tasques_celery_django_q2.md)
 
 ---
 
@@ -24,20 +25,37 @@ En aquesta sessió abordem dos temes que transformen l'aplicació d'un prototip 
 
 Imagineu que, en finalitzar una compra, el sistema ha d'enviar un correu de confirmació i generar un PDF amb les entrades. Ambdues operacions podrien trigar entre 3 i 10 segons cadascuna. Si les executem directament a la vista de `checkout`, el navegador de l'usuari quedarà bloquejat esperant:
 
-```
-POST /api/v1/checkout/
-→ Valida → Guarda compra → Genera PDF (5 s) → Envia correu (4 s) → Retorna resposta
+```mermaid
+sequenceDiagram
+  participant U as Usuari
+  participant API as API Checkout
+
+  U->>API: POST /api/v1/checkout/
+  Note over API: Valida dades
+  Note over API: Guarda compra
+  Note over API: Genera PDF (5 s)
+  Note over API: Envia correu (4 s)
+  API-->>U: 201 Created (resposta tardana)
 ```
 
 Temps total de resposta: ~10 s. En condicions de càrrega, el servidor pot arribar a esgotar el temps màxim de resposta del proxy (normalment 30 s) i retornar `504 Gateway Timeout`.
 
 **La solució** és retornar la resposta immediatament un cop la compra estigui guardada i delegar les tasques costoses a un procés separat (*worker*) que les executarà en segon pla.
 
-```
-POST /api/v1/checkout/
-→ Valida → Guarda compra → Encua tasques → Retorna 201 (< 1 s)
-                                ↓
-              Worker: Genera PDF → Envia correu
+```mermaid
+sequenceDiagram
+  participant U as Usuari
+  participant API as API Checkout
+  participant Q as Cua de tasques
+  participant W as Worker
+
+  U->>API: POST /api/v1/checkout/
+  Note over API: Valida i guarda compra
+  API->>Q: enqueue(generar_pdf_compra)
+  API-->>U: 201 Created (< 1 s)
+  Q-->>W: Tasca pendent
+  Note over W: Genera PDF
+  Note over W: Envia correu
 ```
 
 ### 1.2. Tasques natives a Django 6
@@ -77,7 +95,7 @@ El backend de base de dades emmagatzema les tasques pendents en una taula pròpi
 uv run python manage.py migrate
 ```
 
-### 1.3. Exemple pràctic: confirmació de compra (enviament real per consola)
+### 1.3. Exemple pràctic: PDF + correu (dos patrons)
 
 Per poder provar l'enviament de correu sense enviar cap email real, configurarem el backend de correu de Django en mode consola. Això fa que el contingut del missatge es mostri per terminal.
 
@@ -89,29 +107,35 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "no-reply@entrades.local"
 ```
 
-Ara, creeu un fitxer `tasks.py` a l'aplicació de backend per definir una tasca que enviï un correu de confirmació:
+Ara, creeu un fitxer `tasks.py` a l'aplicació de backend. A continuació teniu dos patrons habituals.
+
+#### Patró A: una sola tasca (PDF + correu)
 
 ```python
 # api/tasks.py
 import logging
 
 from django.core.mail import send_mail
-
 from django.tasks import task
 
 logger = logging.getLogger(__name__)
 
 
 @task
-def enviar_confirmacio_compra(compra_id: int) -> None:
-  """Tasca en segon pla: envia un correu de confirmació (backend consola)."""
-  logger.info("[TASK] Iniciant confirmació per a la compra %d", compra_id)
+def confirmar_compra_pdf_i_mail(compra_id: int) -> None:
+  """Genera el PDF i envia el correu dins la mateixa tasca."""
+  logger.info("[TASK] Iniciant confirmació completa per a la compra %d", compra_id)
+
+  # Exemple simplificat: simulació de generació de PDF
+  pdf_path = f"/tmp/compra_{compra_id}.pdf"
+  logger.info("[TASK] PDF generat a %s", pdf_path)
 
   send_mail(
     subject=f"Confirmació de compra #{compra_id}",
     message=(
-      "Hem rebut la teva compra correctament.\\n"
-      f"ID de compra: {compra_id}\\n"
+      "Hem rebut la teva compra correctament.\n"
+      f"ID de compra: {compra_id}\n"
+      f"PDF generat a: {pdf_path}\n"
       "Gràcies per confiar en nosaltres."
     ),
     from_email=None,
@@ -119,14 +143,74 @@ def enviar_confirmacio_compra(compra_id: int) -> None:
     fail_silently=False,
   )
 
-  logger.info("[TASK] Correu de confirmació generat per consola per a la compra %d", compra_id)
+  logger.info("[TASK] Correu de confirmació enviat per a la compra %d", compra_id)
 ```
+
+#### Patró B: dues tasques encadenades (PDF -> correu)
+
+```python
+# api/tasks.py
+import logging
+
+from django.core.mail import send_mail
+from django.tasks import task
+
+logger = logging.getLogger(__name__)
+
+
+@task
+def generar_pdf_compra(compra_id: int) -> None:
+  """Primer pas: generar PDF; segon pas: encuar l'enviament del correu."""
+  pdf_path = f"/tmp/compra_{compra_id}.pdf"
+  logger.info("[TASK] PDF generat a %s", pdf_path)
+
+  # Enllaç entre tasques: quan acaba PDF, encua correu
+  enviar_mail_compra.enqueue(compra_id, pdf_path)
+
+
+@task
+def enviar_mail_compra(compra_id: int, pdf_path: str) -> None:
+  """Segon pas: enviar correu utilitzant la informació del PDF."""
+  send_mail(
+    subject=f"Confirmació de compra #{compra_id}",
+    message=(
+      "Hem rebut la teva compra correctament.\n"
+      f"ID de compra: {compra_id}\n"
+      f"PDF generat a: {pdf_path}\n"
+      "Gràcies per confiar en nosaltres."
+    ),
+    from_email=None,
+    recipient_list=["client@example.com"],
+    fail_silently=False,
+  )
+  logger.info("[TASK] Correu enviat per a la compra %d", compra_id)
+```
+
+Flux del patró encadenat (`PDF -> correu`):
+
+```mermaid
+sequenceDiagram
+  participant API as API Checkout
+  participant Q as Cua
+  participant W as Worker
+
+  API->>Q: enqueue(generar_pdf_compra)
+  Q-->>W: executar generar_pdf_compra
+  W->>W: genera PDF
+  W->>Q: enqueue(enviar_mail_compra)
+  Q-->>W: executar enviar_mail_compra
+  W->>W: envia correu
+```
+
+> **Nota important sobre encadenat:** El sistema natiu de tasques de Django no ofereix una API declarativa de cadenes. Si voleu cadenes declaratives, podeu usar eines com Celery (`chain`) o django_q2 (`Chain`). Consulteu la guia [Cadenes de Tasques amb Celery i django_q2](../guies/cadenes_tasques_celery_django_q2.md).
 
 > **Nota:** Amb `console.EmailBackend`, no s'envia cap correu extern: el missatge apareix als logs de la terminal on corre el worker.
 
 ### 1.4. Encuar la tasca des de la vista de checkout
 
-Modifiqueu la vista `CheckoutView` de la sessió anterior per encuar la tasca just després de desar la compra. Observeu que la crida a `enviar_confirmacio_compra` retorna **immediatament** sense bloquejar la vista:
+Modifiqueu la vista `CheckoutView` de la sessió anterior per encuar la tasca **després del commit** de la transacció. Això evita condicions de cursa i manté la resposta immediata cap al client.
+
+En aquest exemple, enqueuem el **Patró B** (dues tasques encadenades, `PDF -> correu`):
 
 ```python
 # api/views.py
@@ -139,7 +223,7 @@ from rest_framework.views import APIView
 
 from .models import Event, Compra, Entrada
 from .serializers import CheckoutSerializer, CompraSerializer
-from .tasks import enviar_confirmacio_compra   # <-- import de la tasca
+from .tasks import generar_pdf_compra   # <-- primer pas de la cadena
 
 
 class CheckoutView(APIView):
@@ -174,11 +258,21 @@ class CheckoutView(APIView):
         compra.total = total
         compra.save(update_fields=['total'])
 
-        # Encua la tasca en segon pla (no bloqueja la resposta)
-        enviar_confirmacio_compra.enqueue(compra.id)   # <-- .enqueue() retorna immediatament
+        # Encua la primera tasca quan la transaccio s'ha confirmat
+        transaction.on_commit(
+            lambda: generar_pdf_compra.enqueue(compra.id)
+        )
 
         output = CompraSerializer(compra)
         return Response(output.data, status=status.HTTP_201_CREATED)
+```
+
+Si preferiu el **Patró A** (una sola tasca), només cal canviar l'encuament a:
+
+```python
+transaction.on_commit(
+    lambda: confirmar_compra_pdf_i_mail.enqueue(compra.id)
+)
 ```
 
 ### 1.5. Arrancar el *worker* i verificar el comportament
@@ -208,18 +302,78 @@ curl -X POST http://localhost:8000/api/v1/checkout/ \
 
 **Observeu:**
 * La **Terminal 1** mostra la resposta `HTTP 201` en menys d'un segon.
-* La **Terminal 2** mostra els missatges `[TASK] Iniciant...` i, a continuació, el correu complet (assumpte, destinatari i cos) imprès per consola.
+* La **Terminal 2** mostra primer la generació del PDF i després l'enviament del correu (si feu servir el patró encadenat), o tots dos passos dins la mateixa tasca (si feu servir el patró únic).
+* Com que s'utilitza `console.EmailBackend`, el correu complet (assumpte, destinatari i cos) es veu imprès per consola.
 
 Sense el worker, la tasca queda a la cua de la base de dades però **mai s'executa**. Podeu comprovar-ho consultant la taula de tasques a la base de dades.
 
 ### 1.6. Per què la tasca *no* ha d'estar dins de `transaction.atomic`
 
-La vista de checkout utilitza `@transaction.atomic`. Si encuéssim la tasca *dins* de la transacció, podria succeir el següent:
+La vista de checkout utilitza `@transaction.atomic`: això vol dir que **tot el mètode `post` està dins la mateixa transacció** fins al retorn de la resposta.
 
-1. La transacció es confirma (`COMMIT`) → la compra existeix a la BD.
-2. El worker llegeix la tasca i intenta accedir a la compra **abans** que el `COMMIT` sigui visible → pot fallar amb un `DoesNotExist`.
+El problema apareix quan enqueues una tasca abans que la transacció s'hagi confirmat. El worker pot començar a executar-la i intentar llegir dades que encara no són visibles (o que finalment podrien fer rollback).
 
-La crida a `enviar_confirmacio_compra(compra.id)` ja es troba **fora** del bloc `@transaction.atomic` (el decorador es limita al mètode `post`, però la tasca s'encua en la instrucció posterior al `save`). Django gestiona automàticament que l'encuament es defereixi fins que la transacció es confirmi.
+Si això passa, pots trobar errors com `DoesNotExist`, dades parcials o comportament inconsistent.
+
+Si encuéssim la tasca sense esperar el commit, podria succeir el següent:
+
+```mermaid
+sequenceDiagram
+  participant API as API (transaccio)
+  participant DB as Base de dades
+  participant Q as Cua
+  participant W as Worker
+
+  API->>DB: Inicia transaccio
+  API->>DB: Desa compra (encara no visible fora)
+  API->>Q: enqueue(tasca)
+  W->>Q: Llegeix tasca
+  W->>DB: Busca compra
+  Note over W,DB: Pot fallar si el COMMIT encara no es visible
+  API->>DB: COMMIT
+```
+
+#### Exemple incorrecte
+
+Aquest patró pot executar la tasca massa aviat:
+
+```python
+from django.db import transaction
+
+@transaction.atomic
+def post(self, request):
+    compra = Compra.objects.create(usuari=request.user)
+    compra.total = 50
+    compra.save(update_fields=["total"])
+
+    # INCORRECTE: la transaccio encara no ha fet COMMIT
+    generar_pdf_compra.enqueue(compra.id)
+
+    return Response({"ok": True})
+```
+
+#### Exemple correcte
+
+La manera robusta és diferir l'encuament fins que la transacció es confirma amb `transaction.on_commit`:
+
+```python
+from django.db import transaction
+
+@transaction.atomic
+def post(self, request):
+    compra = Compra.objects.create(usuari=request.user)
+    compra.total = 50
+    compra.save(update_fields=["total"])
+
+    # CORRECTE: nomes s'encua quan el COMMIT s'ha completat
+    transaction.on_commit(
+        lambda: generar_pdf_compra.enqueue(compra.id)
+    )
+
+    return Response({"ok": True})
+```
+
+En resum: crea i desa la compra dins de la transacció, i encua la tasca **despres del commit**.
 
 ---
 
@@ -349,7 +503,7 @@ Si aquesta prova funciona, teniu validats tres punts clau: Docker Desktop operat
 ### 3.1. Tasques a realitzar
 
 1. **Implementar la tasca de confirmació real:**
-  * Partiu de l'exemple amb backend de consola i adapteu `enviar_confirmacio_compra` a una implementació real.
+  * Partiu de l'exemple amb backend de consola i adapteu `confirmar_compra_pdf_i_mail` o la cadena `generar_pdf_compra -> enviar_mail_compra` a una implementació real.
     * Opció A (recomanada): Afegiu el proveïdor de correu de Django (`EMAIL_BACKEND` a `settings.py`) i useu `send_mail` per enviar un correu en text pla amb el resum de la compra.
     * Opció B: Genereu un text de confirmació amb les dades de la compra i deseu-lo en un fitxer de log persistent.
 
