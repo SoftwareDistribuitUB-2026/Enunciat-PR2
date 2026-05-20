@@ -93,7 +93,7 @@ def enviar_correu_confirmacio(compra_id: int) -> None:
     )
 ```
 
-I encua-la des de la vista després de desar la compra:
+I encuar-la des de la vista després de desar la compra:
 
 ```python
 enviar_correu_confirmacio.enqueue(compra.id)

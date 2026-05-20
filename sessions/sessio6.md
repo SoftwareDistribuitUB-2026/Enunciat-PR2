@@ -345,7 +345,7 @@ transaction.on_commit(
 )
 ```
 
-Si preferiu mostrar la transacció amb bloc en lloc del decorador, una alternativa equivalent és:
+Si en comptes del decorador heu utilitzat la transacció amb un bloc with, una alternativa equivalent és:
 
 ```python
 from django.db import transaction
@@ -412,8 +412,6 @@ def post(self, request):
 
 La manera robusta és diferir l'encuament fins que la transacció es confirma amb `transaction.on_commit`:
 
-
-**Exemple 1: decorador**
 ```python
 from django.db import transaction
 
@@ -559,14 +557,24 @@ Si aquesta prova funciona, teniu validats tres punts clau: Docker Desktop operat
 
 ### 3.1. Tasques a realitzar
 
-1. **Implementar la tasca de confirmació real:**
-  * Partiu de l'exemple amb backend de consola i adapteu `confirmar_compra_pdf_i_mail` o la cadena `generar_pdf_compra -> enviar_mail_compra` a una implementació real.
-    * Opció A (recomanada): Afegiu el proveïdor de correu de Django (`EMAIL_BACKEND` a `settings.py`) i useu `send_mail` per enviar un correu en text pla amb el resum de la compra.
-    * Opció B: Genereu un text de confirmació amb les dades de la compra i deseu-lo en un fitxer de log persistent.
+1. **Adaptar la tasca de confirmació per treballar amb dades reals:**
 
-2. **Tasca programada: Preus Dinàmics:**
-    * Implementeu una tasca que s'executi periòdicament (consulteu la documentació oficial de Django 6 sobre *scheduled tasks*) per detectar esdeveniments amb menys del 20% de la capacitat venuda a menys de 48 hores de la data i aplicar-los un descompte del 15%.
-    * La tasca ha de registrar en un log quins esdeveniments han rebut el descompte.
+    Continueu usant el `console.EmailBackend` (sense enviar correus reals). Adapteu les tasques de l'apartat 1.3 perquè treballin amb les dades reals de la compra:
+
+    * Llegiu la compra de la base de dades a partir de `compra_id`. Si no existeix, registreu l'error i acabeu la tasca sense llançar una excepció no controlada.
+    * Construïu el cos del correu amb les **dades reals**: correu electrònic de l'usuari, llista d'entrades comprades (nom d'esdeveniment, quantitat i preu unitari) i total de la compra.
+    * Envieu el correu a l'adreça real de l'usuari que ha fet la compra, no a un destinatari fictici.
+    * No cal generar cap PDF.
+
+2. **Tasca de promocions per a esdeveniments amb places disponibles:**
+
+    Definiu una tasca `enviar_promocions` que rebi un llindar `N` (nombre mínim d'entrades disponibles) i enviï un correu de promoció amb els esdeveniments que, a menys de 48 hores de la data, encara tinguin **més de `N` places lliures**.
+
+    El descompte aplicat a cada esdeveniment dependrà del temps restant:
+    * **Entre 24 h i 48 h abans**: descompte del **15 %**.
+    * **Menys de 24 h abans**: descompte del **30 %**.
+
+    La tasca **no modifica els preus** a la base de dades; simplement calcula el preu promocional per al correu i informa de quins esdeveniments estan afectats.
 
 3. **Verificar el desplegament Docker:**
     * Creeu el fitxer `.env` a partir de `env_sample` i aixequeu l'entorn complet amb `docker compose up --build`.
@@ -580,12 +588,81 @@ Si aquesta prova funciona, teniu validats tres punts clau: Docker Desktop operat
 
 ### 3.2. Casos de prova addicionals per al backend
 
-Amb les tasques asíncrones actives, cal verificar que el checkout no es veu afectat:
+#### Com fer proves de tasques asíncrones
 
-| ID | Què cal provar | Resultat esperat |
-| :-- | :-- | :-- |
-| T17 | Checkout correcte encua la tasca | `201 Created` i la tasca apareix a la taula de cua de la BD |
-| T18 | Rollback per estoc insuficient no encua tasca | `400 Bad Request` i cap tasca encuada |
-| T19 | El worker completa la tasca sense errors | Els logs del worker mostren els missatges de finalització |
+En els tests no volem aixecar un worker real. Django proporciona dos backends alternatius que s'activen amb `@override_settings`:
 
-> **Consell:** Per als tests T17 i T18, podeu inspeccionar directament la taula de tasques de la base de dades o fer servir les utilitats de test de `django.task` si estan disponibles a la versió que feu servir. Consulteu la documentació oficial per als detalls exactes de la versió.
+| Backend | Comportament |
+| :-- | :-- |
+| `django.tasks.backends.immediate.ImmediateBackend` | Executa la tasca **síncronament** en el mateix procés en cridar `.enqueue()`. Permet verificar el comportament complet de la tasca. |
+| `django.tasks.backends.dummy.DummyBackend` | Registra l'encuament però **no executa** la tasca. Permet verificar que s'encua (o no) sense efectes secundaris. |
+
+Per als correus, Django substitueix automàticament el backend pel de memòria (`locmem`) durant els tests. Els missatges enviats queden a `django.core.mail.outbox` i es poden inspeccionar directament.
+
+Exemple mínim:
+
+```python
+# api/tests/test_tasks.py
+import pytest
+from django.core import mail
+from django.test import override_settings
+
+from api.tasks import confirmar_compra
+
+IMMEDIATE = {
+    "default": {
+        "BACKEND": "django.tasks.backends.immediate.ImmediateBackend"
+    }
+}
+
+
+@pytest.mark.django_db
+@override_settings(TASKS=IMMEDIATE)
+def test_confirmar_compra_envia_correu(compra):
+    confirmar_compra.enqueue(compra.id)
+
+    # La tasca s'ha executat de forma síncrona: ja hi ha un correu a outbox
+    assert len(mail.outbox) == 1
+    missatge = mail.outbox[0]
+
+    assert missatge.to == [compra.usuari.email]
+    assert f"#{compra.id}" in missatge.subject
+    assert str(compra.total) in missatge.body
+
+
+@pytest.mark.django_db
+@override_settings(TASKS=IMMEDIATE)
+def test_confirmar_compra_id_inexistent():
+    confirmar_compra.enqueue(99999)
+
+    # La tasca ha registrat l'error però no ha llançat cap excepció
+    assert len(mail.outbox) == 0
+```
+
+> **Nota:** `mail.outbox` es buida automàticament entre tests. No cal fer cap `setUp` manual.
+
+---
+
+**Taula de proves de les tasques asíncrones i promocions**
+
+> **Consells:**
+> - Per als tests de checkout i encuament, podeu inspeccionar la taula de tasques de la base de dades o fer servir utilitats de test de `django.tasks` si estan disponibles a la vostra versió.
+> - Per als correus, utilitzeu sempre `mail.outbox` per comprovar destinataris i contingut.
+> - La tasca de promocions mai ha de modificar el preu real a la base de dades, només el mostra al correu.
+
+| ID  | Què cal provar                                                                 | Resultat esperat                                                                                                 |
+|:----|:------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------|
+| T17 | Checkout correcte encua la tasca de confirmació                               | `201 Created` i la tasca apareix a la taula de la BD                                                             |
+| T18 | Rollback per estoc insuficient no encua cap tasca                             | `400 Bad Request` i cap tasca encuada                                                                            |
+| T19 | El worker processa la tasca de confirmació i envia el correu correctament     | El log mostra l'execució i el correu es genera amb les dades reals (usuari, entrades, total)                   |
+| T20 | La tasca de confirmació amb compra inexistent no falla ni envia correu        | El log mostra l'error controlat i no s'envia cap correu                                                          |
+| T21 | El cos del correu inclou totes les entrades de la compra                      | Cada entrada apareix al correu amb nom d'esdeveniment, quantitat i preu unitari                                 |
+| T22 | El correu s'envia a l'adreça real de l'usuari                                 | El camp `To:` del correu a la consola coincideix amb `usuari.email`                                              |
+| T23 | La tasca de confirmació no llença excepció amb compra inexistent              | No hi ha error del worker ni excepció, només log d'error controlat                                               |
+| T24 | Promocions: hi ha esdeveniments a menys de 48 h amb més de `N` places lliures | El correu de promoció apareix a la consola adreçat a tots els usuaris registrats actius                         |
+| T25 | Promocions: esdeveniment a menys de 24 h amb suficients places                | El preu promocional al correu és el 70 % del preu original (descompte del 30 %)                                 |
+| T26 | Promocions: esdeveniment entre 24 h i 48 h amb suficients places              | El preu promocional al correu és el 85 % del preu original (descompte del 15 %)                                 |
+| T27 | Promocions: tots els esdeveniments tenen ≤ `N` places lliures                 | El log mostra cap promoció per enviar i no s'envia cap correu                                                    |
+| T28 | Promocions: no hi ha cap usuari registrat amb correu electrònic               | El log mostra l'avís corresponent i la tasca acaba sense enviar cap correu                                       |
+| T29 | Promocions: la tasca no modifica els preus de la base de dades                | Després d'executar la tasca, `Esdeveniment.preu` és el mateix que abans                                          |
+
