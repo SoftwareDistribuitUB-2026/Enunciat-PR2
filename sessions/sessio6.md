@@ -64,19 +64,19 @@ sequenceDiagram
 
 #### Instal·lació del paquet
 
+Per tenir una cua persistent a la base de dades i un worker que l'executi, instal·leu el paquet `django-tasks-db`:
+
 ```bash
 uv add django-tasks-db
 ```
 
-#### Configuració a `settings.py`
-
-Afegiu `django_tasks_db` a `INSTALLED_APPS` i configureu el backend:
+Després, configureu el backend de tasques a `settings.py`:
 
 ```python
 # settings.py
 INSTALLED_APPS = [
-    # ... apps existents ...
-    "django_tasks_db",   # <-- backend de tasques amb BD
+    # ...
+    "django_tasks_db",
 ]
 
 TASKS = {
@@ -206,9 +206,79 @@ sequenceDiagram
 
 > **Nota:** Amb `console.EmailBackend`, no s'envia cap correu extern: el missatge apareix als logs de la terminal on corre el worker.
 
-### 1.4. Encuar la tasca des de la vista de checkout
+### 1.4. Arrancar el *worker* i verificar el comportament
 
-Modifiqueu la vista `CheckoutView` de la sessió anterior per encuar la tasca **després del commit** de la transacció. Això evita condicions de cursa i manté la resposta immediata cap al client.
+Obriu **tres terminals** en paral·lel per observar el comportament asíncron:
+
+**Terminal 1 – El servidor web:**
+```bash
+uv run python manage.py runserver
+```
+
+**Terminal 2 – El worker de tasques:**
+```bash
+uv run python manage.py db_worker
+```
+
+**Terminal 3 – Django Shell:**
+```bash
+uv run python manage.py shell
+```
+
+Dins del shell, importeu la tasca i encueu-la manualment:
+
+```python
+from api.tasks import generar_pdf_compra
+
+generar_pdf_compra.enqueue(1)  # id de compra d'exemple
+```
+
+**Observeu:**
+* La **Terminal 3** accepta l'encuament immediatament (sense esperar que la tasca acabi).
+* La **Terminal 2** mostra primer la generació del PDF i després l'enviament del correu (si feu servir el patró encadenat), o tots dos passos dins la mateixa tasca (si feu servir el patró únic).
+* Com que s'utilitza `console.EmailBackend`, el correu complet (assumpte, destinatari i cos) es veu imprès per consola.
+
+Sense el worker, la tasca queda a la cua de la base de dades però **mai s'executa**. Podeu comprovar-ho consultant la taula de tasques a la base de dades.
+
+#### Prova extra: cua pendent i represa del worker
+
+Per veure clarament la diferència entre "encuada" i "executada", feu aquesta prova controlada:
+
+1. **Atureu el worker** (Terminal 2) amb `Ctrl+C`.
+2. A la **Terminal 3 (Django Shell)**, encueu dues tasques:
+
+```python
+from api.tasks import generar_pdf_compra
+
+generar_pdf_compra.enqueue(1)
+generar_pdf_compra.enqueue(1)
+```
+
+3. Al mateix shell, **importeu el model de tasques** i consulteu els últims registres:
+
+```python
+from django_tasks_db.models import DBTaskResult
+
+for t in DBTaskResult.objects.order_by("-id")[:5]:
+  print(
+    t.id,
+    getattr(t, "status", None),
+    getattr(t, "state", None),
+    getattr(t, "attempts", None),
+  )
+```
+
+4. **Arranqueu de nou el worker** a la Terminal 2:
+
+```bash
+uv run python manage.py db_worker
+```
+
+5. Torneu al shell (Terminal 3) i torneu a consultar els registres del model de tasques per verificar que l'estat ha canviat després de l'execució.
+
+### 1.5. Encuar la tasca des de la vista de checkout
+
+Un cop vist el comportament del worker, modifiqueu la vista `CheckoutView` per encuar la tasca **després del commit** de la transacció. Això evita condicions de cursa i manté la resposta immediata cap al client.
 
 En aquest exemple, enqueuem el **Patró B** (dues tasques encadenades, `PDF -> correu`):
 
@@ -227,85 +297,71 @@ from .tasks import generar_pdf_compra   # <-- primer pas de la cadena
 
 
 class CheckoutView(APIView):
-    permission_classes = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
-    def post(self, request):
-        serializer = CheckoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        entrades = serializer.validated_data['entrades']
+  @transaction.atomic
+  def post(self, request):
+    serializer = CheckoutSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    entrades = serializer.validated_data['entrades']
 
-        compra = Compra.objects.create(usuari=request.user)
-        total = 0
+    compra = Compra.objects.create(usuari=request.user)
+    total = 0
 
-        for item in entrades:
-            event = Event.objects.select_for_update().get(pk=item['esdeveniment_id'])
-            qty = item['quantitat']
+    for item in entrades:
+      event = Event.objects.select_for_update().get(pk=item['esdeveniment_id'])
+      qty = item['quantitat']
 
-            if event.capacitat < qty:
-                raise ValidationError(
-                    {"detail": f"No hi ha prou places per a l'esdeveniment {event.id}"}
-                )
-
-            Entrada.objects.create(
-                compra=compra,
-                esdeveniment=event,
-                quantitat=qty,
-                preu_unitari=event.preu,
-            )
-            total += event.preu * qty
-
-        compra.total = total
-        compra.save(update_fields=['total'])
-
-        # Encua la primera tasca quan la transaccio s'ha confirmat
-        transaction.on_commit(
-            lambda: generar_pdf_compra.enqueue(compra.id)
+      if event.capacitat < qty:
+        raise ValidationError(
+          {"detail": f"No hi ha prou places per a l'esdeveniment {event.id}"}
         )
 
-        output = CompraSerializer(compra)
-        return Response(output.data, status=status.HTTP_201_CREATED)
+      Entrada.objects.create(
+        compra=compra,
+        esdeveniment=event,
+        quantitat=qty,
+        preu_unitari=event.preu,
+      )
+      total += event.preu * qty
+
+    compra.total = total
+    compra.save(update_fields=['total'])
+
+    # Encua la primera tasca quan la transaccio s'ha confirmat
+    transaction.on_commit(
+      lambda: generar_pdf_compra.enqueue(compra.id)
+    )
+
+    output = CompraSerializer(compra)
+    return Response(output.data, status=status.HTTP_201_CREATED)
 ```
 
 Si preferiu el **Patró A** (una sola tasca), només cal canviar l'encuament a:
 
 ```python
 transaction.on_commit(
-    lambda: confirmar_compra_pdf_i_mail.enqueue(compra.id)
+  lambda: confirmar_compra_pdf_i_mail.enqueue(compra.id)
 )
 ```
 
-### 1.5. Arrancar el *worker* i verificar el comportament
+Si preferiu mostrar la transacció amb bloc en lloc del decorador, una alternativa equivalent és:
 
-Obriu **dues terminals** en paral·lel per observar el comportament asíncron:
+```python
+from django.db import transaction
 
-**Terminal 1 – El servidor web:**
-```bash
-uv run python manage.py runserver
+def post(self, request):
+  with transaction.atomic():
+    compra = Compra.objects.create(usuari=request.user)
+    # ... validacions i creació d'entrades ...
+
+    transaction.on_commit(
+      lambda: generar_pdf_compra.enqueue(compra.id)
+    )
+
+  output = CompraSerializer(compra)
+  return Response(output.data, status=status.HTTP_201_CREATED)
 ```
-
-**Terminal 2 – El worker de tasques:**
-```bash
-uv run python manage.py db_worker
-```
-
-Ara feu una petició de checkout:
-```bash
-curl -X POST http://localhost:8000/api/v1/checkout/ \
-  -H "Authorization: Bearer <ACCESS_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-        "usuari_id": 1,
-        "entrades": [{"esdeveniment_id": 1, "quantitat": 2}]
-      }'
-```
-
-**Observeu:**
-* La **Terminal 1** mostra la resposta `HTTP 201` en menys d'un segon.
-* La **Terminal 2** mostra primer la generació del PDF i després l'enviament del correu (si feu servir el patró encadenat), o tots dos passos dins la mateixa tasca (si feu servir el patró únic).
-* Com que s'utilitza `console.EmailBackend`, el correu complet (assumpte, destinatari i cos) es veu imprès per consola.
-
-Sense el worker, la tasca queda a la cua de la base de dades però **mai s'executa**. Podeu comprovar-ho consultant la taula de tasques a la base de dades.
 
 ### 1.6. Per què la tasca *no* ha d'estar dins de `transaction.atomic`
 
@@ -356,21 +412,22 @@ def post(self, request):
 
 La manera robusta és diferir l'encuament fins que la transacció es confirma amb `transaction.on_commit`:
 
+
+**Exemple 1: decorador**
 ```python
 from django.db import transaction
 
 @transaction.atomic
 def post(self, request):
-    compra = Compra.objects.create(usuari=request.user)
-    compra.total = 50
-    compra.save(update_fields=["total"])
+  compra = Compra.objects.create(usuari=request.user)
+  compra.total = 50
+  compra.save(update_fields=["total"])
 
-    # CORRECTE: nomes s'encua quan el COMMIT s'ha completat
-    transaction.on_commit(
-        lambda: generar_pdf_compra.enqueue(compra.id)
-    )
-
-    return Response({"ok": True})
+  # CORRECTE: nomes s'encua quan el COMMIT s'ha completat
+  transaction.on_commit(
+    lambda: generar_pdf_compra.enqueue(compra.id)
+  )
+  return Response({"ok": True})
 ```
 
 En resum: crea i desa la compra dins de la transacció, i encua la tasca **despres del commit**.
