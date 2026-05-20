@@ -458,6 +458,10 @@ flowchart LR
 | `db` | MariaDB amb persistència de dades d'aplicació i de cua de tasques. |
 | `worker` | Procés `db_worker` que consumeix i executa tasques asíncrones des de la BD. |
 
+> ℹ️ **Informació:** En aquest exemple, Traefik està servint només HTTP. Tot i això, Traefik també pot generar certificats TLS de forma automàtica amb Let's Encrypt: https://doc.traefik.io/traefik/https/acme/
+>
+> Si disposeu d'un domini real, podeu configurar també el port 443 per servir HTTPS (entrypoint `websecure`) i aplicar el router TLS corresponent: https://doc.traefik.io/traefik/routing/entrypoints/
+
 ### 2.2. Gunicorn i Nginx: per què no el servidor de Django?
 
 ```mermaid
