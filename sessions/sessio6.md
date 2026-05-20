@@ -436,120 +436,167 @@ En resum: crea i desa la compra dins de la transacció, i encua la tasca **despr
 
 ### 2.1. Arquitectura del sistema en producció
 
-Quan passem de l'entorn de desenvolupament (dos processos locals) a producció, necessitem una infraestructura completa. El fitxer `docker-compose.yml` de la plantilla aixeca els serveis següents:
+```mermaid
+flowchart LR
+  Browser[Navegador<br/>http://localhost:80] --> Traefik[Traefik<br/>Reverse Proxy]
 
+  subgraph Docker[Docker network: internal]
+    Traefik --> Frontend[Nginx Frontend<br/>Vue compilat]
+    Traefik --> Backend[Gunicorn Backend<br/>Django API]
+    Backend --> DB[(MariaDB)]
+    Worker[db_worker<br/>django-tasks-db] --> DB
+  end
 ```
-                         ┌─────────────────────────────────────────┐
-  Navegador              │         xarxa interna Docker            │
-  (Port 80)  →  Traefik ─┼──→  Nginx (Frontend Vue compilat)       │
-                         │  └──→  Gunicorn (Backend Django)        │
-                         │           └──→  MariaDB                 │
-                         │           └──→  db_worker (nou!)        │
-                         └─────────────────────────────────────────┘
-```
 
-**Rols de cada servei:**
+**Definicions dels serveis de l'arquitectura:**
 
-| Servei | Imatge base | Funció |
-| :-- | :-- | :-- |
-| `traefik` | `traefik:v3` | Porta d'entrada única (Port 80). Enruta `/api/` cap al backend i `/` cap al frontend. |
-| `frontend` | `node` + `nginx` | Compila Vue en HTML/JS estàtic i el serveix amb Nginx. |
-| `backend` | `python` + `gunicorn` | Executa el codi Django amb Gunicorn (WSGI), preparat per atendre múltiples peticions simultànies. |
-| `db` | `mariadb` | Base de dades relacional de producció (substitueix SQLite). |
-| `worker` | (mateix Dockerfile que `backend`) | Executa `python manage.py db_worker` per processar tasques en segon pla. |
+| Servei | Definició funcional |
+| :-- | :-- |
+| `traefik` | Porta d'entrada HTTP (port 80) i encaminador de peticions cap a frontend o backend. |
+| `frontend` | Servei Nginx que publica els fitxers estàtics compilats de Vue. |
+| `backend` | Servei Django executat amb Gunicorn per servir l'API. |
+| `db` | MariaDB amb persistència de dades d'aplicació i de cua de tasques. |
+| `worker` | Procés `db_worker` que consumeix i executa tasques asíncrones des de la BD. |
 
 ### 2.2. Gunicorn i Nginx: per què no el servidor de Django?
 
-El servidor integrat de Django (`runserver`) està dissenyat únicament per al desenvolupament: és monofil, no gestiona múltiples connexions simultànies i no és segur en producció.
+```mermaid
+flowchart LR
+  Req[Petició HTTP] --> Traefik[Traefik]
+  Traefik -->|/| Nginx[Nginx<br/>fitxers estàtics]
+  Traefik -->|/api/| Gunicorn[Gunicorn<br/>WSGI multi-worker]
+  Gunicorn --> Django[Django app]
 
-* **Gunicorn** (Green Unicorn) és un servidor WSGI que actua com a *pont* entre el proxy (Traefik) i el codi Python. Crea múltiples processos (*workers*) per atendre peticions en paral·lel.
-* **Nginx** serveix fitxers estàtics ultraràpidament. El codi Vue compilat (HTML, CSS, JS) no necessita cap lògica de servidor; Nginx l'entrega directament al navegador sense passar per Python.
+  classDef noProd fill:#ffe8e8,stroke:#d66,stroke-width:1px;
+  Runserver[runserver<br/>només desenvolupament]:::noProd
+```
+
+**Definicions clau:**
+
+- `runserver`: servidor de desenvolupament, no pensat per producció.
+- `Gunicorn`: servidor WSGI de producció per al backend Django.
+- `Nginx`: servidor eficient per fitxers estàtics del frontend.
+- `Traefik`: reverse proxy que decideix cap a quin servei va cada ruta.
 
 ### 2.3. Volums i xarxes
 
-**Xarxes Docker:**
-Docker Compose crea una xarxa virtual privada on tots els serveis es comuniquen pel seu nom (ex: el backend connecta a la BD usant `db:3306` en lloc de `localhost:3306`). Cap d'aquests ports és accessible des de fora del contenidor, excepte el port 80 de Traefik.
+```mermaid
+flowchart TB
+  subgraph Host[Host machine]
+    Port80[Port 80 publicat]
+    Volume[(Volum Docker: db_data)]
+  end
 
-**Volums:**
-Un volum és un directori persistent que sobreviu als reinicis dels contenidors. S'utilitza principalment per a la base de dades:
+  subgraph Net[Docker network: internal]
+    Traefik2[Traefik]
+    Backend2[Backend]
+    Worker2[Worker]
+    DB2[(MariaDB)]
+  end
+
+  Port80 --> Traefik2
+  Backend2 --> DB2
+  Worker2 --> DB2
+  Volume <--> DB2
+```
+
+**Definicions clau:**
+
+- `xarxa internal`: xarxa privada Docker on els serveis es resolen pel nom (`db`, `backend`, etc.).
+- `port publicat`: únic punt exposat cap a fora (habitualment el 80 de `traefik`).
+- `volum`: persistència de dades entre reinicis i recreacions de contenidors.
+
+### 2.4. Definir volums amb mapeig a un directori local
+
+Per facilitar inspecció i còpies de seguretat locals, podeu mapar la BD a un directori del projecte (bind mount). Us mostrem dues opcions:
+
+**Opció A (curta): path relatiu al `compose.yml`**
 
 ```yaml
-volumes:
-  db_data:       # Les dades de MariaDB persisteixen aquí
-
 services:
   db:
     image: mariadb:11
     volumes:
-      - db_data:/var/lib/mysql   # Muntem el volum dins del contenidor
+      - ./docker-data/mariadb:/var/lib/mysql
 ```
 
-Sense el volum, cada vegada que s'aturés el contenidor de MariaDB es perdrien totes les dades.
-
-### 2.4. Afegir el servei `worker` al `docker-compose.yml`
-
-Per tal que les tasques en segon pla s'executin en producció, cal afegir un nou servei al fitxer `docker-compose.yml` que executi el *worker* en lloc del servidor web:
+**Opció B (recomanada quan hi ha problemes amb rutes relatives): bloc `volumes` amb `driver` i `${PWD}`**
 
 ```yaml
 services:
-  # ... serveis existents (traefik, frontend, backend, db) ...
+  db:
+    image: mariadb:11
+    volumes:
+      - db_data_local:/var/lib/mysql
 
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: uv run python manage.py db_worker
-    env_file:
-      - .env
-    depends_on:
-      - db
-      - backend
-    networks:
-      - internal
-    restart: unless-stopped
+volumes:
+  db_data_local:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/docker-data/mariadb
 ```
 
-**Punts clau:**
-* Utilitza el **mateix `Dockerfile`** que el backend, perquè necessita el mateix codi Python.
-* L'única diferència és la `command`: en lloc de `gunicorn`, executa `db_worker`.
-* `depends_on: db` garanteix que la base de dades estigui disponible (on s'emmagatzemen les tasques pendents) abans d'arrancar el worker.
-* `restart: unless-stopped` el reinicia automàticament si peta.
+```mermaid
+flowchart LR
+  LocalDir["./docker-data/mariadb o ${PWD}/docker-data/mariadb"] <--> MariaPath["/var/lib/mysql al contenidor db"]
+  MariaPath --> DBData[(Dades MariaDB persistents)]
+```
 
-### 2.5. Aixecar l'entorn complet
+**Recomanació:** creeu el directori abans d'aixecar el compose (`mkdir -p docker-data/mariadb`) i no el pugeu al repositori. Si `${PWD}` no es resol al vostre entorn, substituïu-lo per una ruta absoluta.
 
-Un cop teniu el fitxer `.env` creat (a partir de `env_sample`), podeu arrancar tota la infraestructura:
+### 2.5. Afegir el servei `worker` al `docker-compose.yml`
+
+```mermaid
+flowchart LR
+  Build[Build backend image] --> Reuse[Reutilitza la mateixa imatge al worker]
+  Reuse --> Cmd[command: python manage.py db_worker]
+  Cmd --> Depends[depends_on: db, backend]
+  Depends --> Start[Worker en execució]
+  Start --> Retry[restart: unless-stopped]
+```
+
+### 2.6. Aixecar l'entorn complet
+
+```mermaid
+sequenceDiagram
+  participant U as Usuari
+  participant C as Docker Compose
+  participant S as Serveis (traefik/frontend/backend/db/worker)
+
+  U->>C: docker compose up --build
+  C->>S: Build + Start
+  U->>S: Obre http://localhost
+  U->>C: docker compose logs -f worker
+  U->>C: docker compose down
+  U->>C: docker compose down -v (opcional)
+```
+
+Comandes:
 
 ```bash
 docker compose up --build
-```
-
-Accediu a `http://localhost` per veure l'aplicació funcionant. Podeu comprovar que el worker processa tasques observant els logs:
-
-```bash
 docker compose logs -f worker
-```
-
-Per aturar-ho tot:
-```bash
 docker compose down
-```
-
-Per aturar-ho eliminant també les dades de la base de dades:
-```bash
 docker compose down -v
 ```
 
 > ⚠️ **Compte amb `-v`:** Elimina tots els volums i, per tant, totes les dades de la base de dades.
 
-### 2.6. Validació a les aules Windows (prova de xarxa)
+### 2.7. Validació a les aules Windows (prova de xarxa)
 
-Per validar que Docker Desktop funciona correctament als PCs de l'aula i que un servei en contenidor és accessible des d'altres equips, feu una prova curta abans de continuar:
+```mermaid
+flowchart LR
+  A[Instal.lar i obrir Docker Desktop] --> B[Arrencar compose simple: traefik + nginx]
+  B --> C[Validar en local: http://localhost]
+  C --> D[Obtenir IP amb ipconfig]
+  D --> E[Validar des d'un altre PC: http://IP_PC_WINDOWS]
+  E --> F[Resultat: Docker + ports + xarxa validats]
+```
 
-1. Seguiu la mini guia [Docker Desktop a Windows (Aules)](../guies/docker_desktop_windows.md).
-2. Aixequeu el `compose.yml` simple (`traefik + nginx`) i comproveu localment `http://localhost`.
-3. Identifiqueu la IP del PC Windows (amb `ipconfig`) i obriu `http://<IP_DEL_PC_WINDOWS>` des d'un altre ordinador de la mateixa xarxa.
-
-Si aquesta prova funciona, teniu validats tres punts clau: Docker Desktop operatiu, publicació de ports al host i connectivitat entre màquines de l'aula.
+> [!CAUTION]
+> Aquest és el procediment que s'haurà de **seguir obligatòriament** durant la sessió de **proves creuades**. Assegureu-vos de tenir-lo validat i documentat abans de la sessió. Ho teniu definit com a **tasca fora del laboratori**.
 
 ---
 
@@ -576,15 +623,15 @@ Si aquesta prova funciona, teniu validats tres punts clau: Docker Desktop operat
 
     La tasca **no modifica els preus** a la base de dades; simplement calcula el preu promocional per al correu i informa de quins esdeveniments estan afectats.
 
-3. **Verificar el desplegament Docker:**
-    * Creeu el fitxer `.env` a partir de `env_sample` i aixequeu l'entorn complet amb `docker compose up --build`.
-    * Verifiqueu que el frontend és accessible a `http://localhost`, que les crides a l'API funcionen correctament i que el worker processa tasques (feu una compra i comproveu els logs).
-    * Documenteu a la memòria (`docs/index.md`) els passos seguits i qualsevol problema trobat.
+3. **Preparar l'entorn complet per a la sessió de proves creuades:**
+  * Creeu el fitxer `.env` a partir de `env_sample` i aixequeu tots els serveis amb `docker compose up --build` (`traefik`, `frontend`, `backend`, `db`, `worker`).
+  * Verifiqueu abans de la sessió que el frontend respon, que l'API funciona i que el worker processa tasques.
+  * Deixeu registrat a `docs/index.md` com aixequeu i verifiqueu l'entorn perquè un altre equip pugui reproduir-lo.
 
-4. **Preparar la PR setmanal:**
-    * Incloeu un resum de les funcionalitats implementades (tasques asíncrones i desplegament Docker).
-    * Afegiu captures de pantalla o excerpts dels logs que demostrin que el worker processa tasques en segon pla.
-    * Descriviu l'arquitectura de desplegament resultant (serveis, xarxes, volums).
+4. **Preparar la PR setmanal orientada a proves creuades:**
+  * Incloeu un resum de funcionalitats i l'estat de l'entorn complet aixecat per a la sessió de proves creuades.
+  * Afegiu evidències (captures o logs) de backend, worker i base de dades en funcionament.
+  * Documenteu explícitament quins serveis s'han d'arrencar i en quin ordre per passar la prova creuada.
 
 ### 3.2. Casos de prova addicionals per al backend
 
