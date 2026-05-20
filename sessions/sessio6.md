@@ -442,17 +442,7 @@ En resum: crea i desa la compra dins de la transacció, i encua la tasca **despr
 
 ### 2.1. Arquitectura del sistema en producció
 
-```mermaid
-flowchart LR
-  Browser[Navegador<br/>http://localhost:80] --> Traefik[Traefik<br/>Reverse Proxy]
-
-  subgraph Docker[Docker network: internal]
-    Traefik --> Frontend[Nginx Frontend<br/>Vue compilat]
-    Traefik --> Backend[Gunicorn Backend<br/>Django API]
-    Backend --> DB[(MariaDB)]
-    Worker[db_worker<br/>django-tasks-db] --> DB
-  end
-```
+![Diagrama de serveix per a producció](../images/diagrama_serveis.png)
 
 **Definicions dels serveis de l'arquitectura:**
 
@@ -487,6 +477,8 @@ flowchart LR
 - `Gunicorn`: servidor WSGI de producció per al backend Django.
 - `Nginx`: servidor eficient per fitxers estàtics del frontend.
 - `Traefik`: reverse proxy que decideix cap a quin servei va cada ruta.
+
+> ℹ️ **Nota sobre el codi base:** El projecte ja inclou `Dockerfile` tant per al backend com per al frontend, i segueixen aquesta arquitectura. El `Dockerfile` del backend construeix un entorn Python de producció i arrenca Django amb `gunicorn` (via `uv`), mentre que el `Dockerfile` del frontend fa un build multietapa (Node/Vite) i publica els estàtics finals amb Nginx.
 
 ### 2.3. Volums i xarxes
 
@@ -586,7 +578,7 @@ sequenceDiagram
 Comandes:
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 docker compose logs -f worker
 docker compose down
 docker compose down -v
@@ -596,14 +588,15 @@ docker compose down -v
 
 ### 2.7. Validació a les aules Windows (prova de xarxa)
 
-```mermaid
-flowchart LR
-  A[Instal.lar i obrir Docker Desktop] --> B[Arrencar compose simple: traefik + nginx]
-  B --> C[Validar en local: http://localhost]
-  C --> D[Obtenir IP amb ipconfig]
-  D --> E[Validar des d'un altre PC: http://IP_PC_WINDOWS]
-  E --> F[Resultat: Docker + ports + xarxa validats]
-```
+En aquesta validació es comprova, en ordre, que el servei arrenca bé al PC de l'aula, que és accessible localment i que també es publica correctament a la xarxa del laboratori.
+
+Passos recomanats:
+
+1. Arranqueu un `compose` simple (per exemple `traefik + nginx`) al PC de l'aula.
+2. Verifiqueu en local que el servei respon a `http://localhost`.
+3. Obteniu la IP del PC amb `ipconfig`.
+4. Des d'un altre ordinador de la mateixa xarxa, obriu `http://IP_DEL_PC_WINDOWS`.
+5. Si respon des del segon equip, la validació de xarxa queda superada.
 
 > [!CAUTION]
 > Aquest és el procediment que s'haurà de **seguir obligatòriament** durant la sessió de **proves creuades**. Assegureu-vos de tenir-lo validat i documentat abans de la sessió. Ho teniu definit com a **tasca fora del laboratori**.
@@ -642,6 +635,12 @@ flowchart LR
   * Incloeu un resum de funcionalitats i l'estat de l'entorn complet aixecat per a la sessió de proves creuades.
   * Afegiu evidències (captures o logs) de backend, worker i base de dades en funcionament.
   * Documenteu explícitament quins serveis s'han d'arrencar i en quin ordre per passar la prova creuada.
+
+5. **Servir els fitxers estàtics del backend des del Nginx del frontend:**
+  * Actualment els estàtics del backend no s'estan servint. Modifiqueu els fitxers lliurats perquè el Nginx del frontend també pugui servir els estàtics generats per Django.
+  * **Pista:** podeu muntar un mateix volum en dos contenidors diferents (backend i frontend) perquè un generi els estàtics i l'altre els publiqui.
+  * Tingueu en compte que probablement caldrà fer alguna acció manual (per exemple, generar estàtics) o bé canviar la forma d'arrencar Django perquè aquest pas quedi integrat.
+  * Heu d'explicar aquest punt a `docs/index.md`: què heu canviat, com es generen/serveixen els estàtics i com es valida que funciona.
 
 ### 3.2. Casos de prova addicionals per al backend
 
