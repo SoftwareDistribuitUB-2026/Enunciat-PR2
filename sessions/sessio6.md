@@ -40,12 +40,6 @@ sequenceDiagram
 
 Temps total de resposta: ~10 s. En condicions de càrrega, el servidor pot arribar a esgotar el temps màxim de resposta del proxy (normalment 30 s) i retornar `504 Gateway Timeout`.
 
-A més d'evitar timeouts, les cues de tasques asíncrones permeten que el backend marqui el ritme de processament i reparteixi millor la càrrega: les operacions costoses no s'han d'executar immediatament dins de cada petició HTTP. Això millora l'ús de recursos i l'escalabilitat quan augmenta el volum de peticions.
-
-També permeten execució **distribuïda**: un únic servidor Django pot encuar feina perquè la consumeixin workers desplegats en màquines diferents (o fins i tot en altres zones/centres). A més, podeu assignar cues específiques a workers amb **hardware especialitzat** (per exemple, GPU per inferència de models, CPU amb molts cores per processament massiu o màquines amb molta RAM per renders/pdfs grans).
-
-![Diagrama de cues i workers distribuïts](../images/diagrama_tasques.png)
-
 **La solució** és retornar la resposta immediatament un cop la compra estigui guardada i delegar les tasques costoses a un procés separat (*worker*) que les executarà en segon pla.
 
 ```mermaid
@@ -63,6 +57,12 @@ sequenceDiagram
   Note over W: Genera PDF
   Note over W: Envia correu
 ```
+
+A més d'evitar timeouts, les cues de tasques asíncrones permeten que el backend marqui el ritme de processament i reparteixi millor la càrrega: les operacions costoses no s'han d'executar immediatament dins de cada petició HTTP. Això millora l'ús de recursos i l'escalabilitat quan augmenta el volum de peticions.
+
+També permeten execució **distribuïda**: un únic servidor Django pot encuar feina perquè la consumeixin workers desplegats en màquines diferents (o fins i tot en altres zones/centres). A més, podeu assignar cues específiques a workers amb **hardware especialitzat** (per exemple, GPU per inferència de models, CPU amb molts cores per processament massiu o màquines amb molta RAM per renders/pdfs grans).
+
+![Diagrama de cues i workers distribuïts](../images/diagrama_tasques.png)
 
 ### 1.2. Tasques natives a Django 6
 
