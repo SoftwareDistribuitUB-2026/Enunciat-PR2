@@ -631,16 +631,17 @@ Passos recomanats:
   * Verifiqueu abans de la sessió que el frontend respon, que l'API funciona i que el worker processa tasques.
   * Deixeu registrat a `docs/index.md` com aixequeu i verifiqueu l'entorn perquè un altre equip pugui reproduir-lo.
 
-4. **Preparar la PR setmanal orientada a proves creuades:**
-  * Incloeu un resum de funcionalitats i l'estat de l'entorn complet aixecat per a la sessió de proves creuades.
-  * Afegiu evidències (captures o logs) de backend, worker i base de dades en funcionament.
-  * Documenteu explícitament quins serveis s'han d'arrencar i en quin ordre per passar la prova creuada.
-
-5. **Servir els fitxers estàtics del backend des del Nginx del frontend:**
+4. **Servir els fitxers estàtics del backend des del Nginx del frontend:**
   * Actualment els estàtics del backend no s'estan servint. Modifiqueu els fitxers lliurats perquè el Nginx del frontend també pugui servir els estàtics generats per Django.
   * **Pista:** podeu muntar un mateix volum en dos contenidors diferents (backend i frontend) perquè un generi els estàtics i l'altre els publiqui.
   * Tingueu en compte que probablement caldrà fer alguna acció manual (per exemple, generar estàtics) o bé canviar la forma d'arrencar Django perquè aquest pas quedi integrat.
   * Heu d'explicar aquest punt a `docs/index.md`: què heu canviat, com es generen/serveixen els estàtics i com es valida que funciona.
+
+5. **Preparar la PR setmanal orientada a proves creuades:**
+  * Incloeu un resum de funcionalitats i l'estat de l'entorn complet aixecat per a la sessió de proves creuades.
+  * Afegiu evidències (captures o logs) de backend, worker i base de dades en funcionament.
+  * Documenteu explícitament quins serveis s'han d'arrencar i en quin ordre per passar la prova creuada.
+
 
 ### 3.2. Casos de prova addicionals per al backend
 
