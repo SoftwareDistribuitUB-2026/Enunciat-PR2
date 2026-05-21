@@ -600,7 +600,11 @@ Passos recomanats:
 
 > [!CAUTION]
 > Aquest és el procediment que s'haurà de **seguir obligatòriament** durant la sessió de **proves creuades**. Assegureu-vos de tenir-lo validat i documentat abans de la sessió. Ho teniu definit com a **tasca fora del laboratori**.
-
+> En el Dockerfile del backend hi ha un **ERROR**, cal afegir el Readme.md a la llista de fitxers que es copien, amb el que la línia ```20-21``` ha de quedar així:
+> ```bash
+> # Copiem els fitxers de dependències
+> COPY pyproject.toml uv.lock README.md ./
+> ```
 ---
 
 ## 3. Tasques fora del laboratori (Treball Autònom)
