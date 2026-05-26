@@ -25,7 +25,11 @@ Cada grup treballarà en dos rols:
 1. **Autoavaluació del seu projecte**: revisió de PRs, proves pròpies i estat del desplegament.
 2. **Avaluació d'altres grups**: execució de proves sobre el projecte d'altres grups i registre d'incidències.
 
-Per assegurar traçabilitat, totes les proves han de portar un **codi de test** (`T00`, `T01`, ...), i els resultats s'han de resumir en una taula final.
+El flux global de la sessió (rols, execució de proves i recollida d'evidències) es resumeix al diagrama següent:
+
+![Diagrama resum de la Sessió 7](../images/diagrama_s7.png)
+
+Per assegurar traçabilitat, els **codis de test** (`T00`, `T01`, ...) ja estan predefinits al catàleg de proves i al material de la sessió. Cada grup ha d'aplicar aquests codis en el registre de resultats i resumir-los en la taula final de l'informe.
 
 ## 2. Script base i nomenclatura de lliurament
 
