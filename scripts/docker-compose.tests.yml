@@ -1,0 +1,64 @@
+version: "3.9"
+
+# Plantilla minima per a test_session/docker-compose.tests.yml
+#
+# Com utilitzar-la:
+# 1) Manteniu un servei base i dupliqueu-lo per cada grup avaluat.
+# 2) Per a cada servei, canvieu:
+#    - nom del servei (ex: tests_b01_c10)
+#    - fitxer de test adaptat (ex: ./sd2526_B01_C10.py)
+#    - TEST_ID (ex: B01_C10)
+#    - BASE_API_URL (URL del grup avaluat)
+#
+# Resultats:
+# - output/<TEST_ID>.log
+# - output/<TEST_ID>.html
+# - output/<TEST_ID>.junit.xml
+
+services:
+  # Exemple 1: grup C10
+  tests_b01_c10:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    image: sd2526-tests:latest
+    volumes:
+      # Script adaptat d'aquest grup avaluat -> cami intern fix
+      - ./sd2526_B01_C10.py:/work/test_script.py:ro
+      # Carpeta local per recollir artifacts
+      - ./output:/work/output
+    environment:
+      # Prefix dels fitxers de sortida
+      TEST_ID: B01_C10
+      # URL base de l'API del grup avaluat
+      BASE_API_URL: http://host.docker.internal:8100
+      REGISTER_ENDPOINT: /api/v1/users/
+      LOGIN_ENDPOINT: /api/v1/token/
+      USERS_LIST_ENDPOINT: /api/v1/users/
+      USER_DETAIL_ENDPOINT_TEMPLATE: /api/v1/users/{user_id}/
+      EVENTS_ENDPOINT: /api/v1/events/
+      EVENT_DETAIL_ENDPOINT_TEMPLATE: /api/v1/events/{event_id}/
+      CHECKOUT_ENDPOINT: /api/v1/checkout/
+      ALLOW_NON_ADMIN_EVENT_CREATE: "false"
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+
+  # Exemple 2: grup D03
+  tests_b01_d03:
+    image: sd2526-tests:latest
+    volumes:
+      - ./sd2526_B01_D03.py:/work/test_script.py:ro
+      - ./output:/work/output
+    environment:
+      TEST_ID: B01_D03
+      BASE_API_URL: http://host.docker.internal:8200
+      REGISTER_ENDPOINT: /api/v1/users/
+      LOGIN_ENDPOINT: /api/v1/token/
+      USERS_LIST_ENDPOINT: /api/v1/users/
+      USER_DETAIL_ENDPOINT_TEMPLATE: /api/v1/users/{user_id}/
+      EVENTS_ENDPOINT: /api/v1/events/
+      EVENT_DETAIL_ENDPOINT_TEMPLATE: /api/v1/events/{event_id}/
+      CHECKOUT_ENDPOINT: /api/v1/checkout/
+      ALLOW_NON_ADMIN_EVENT_CREATE: "false"
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin

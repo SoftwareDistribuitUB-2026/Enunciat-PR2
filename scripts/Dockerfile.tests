@@ -1,0 +1,16 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /work
+
+# Dependències de les proves
+RUN pip install --no-cache-dir pytest requests pytest-html
+
+ENV TEST_SCRIPT=/work/test_script.py \
+    OUTPUT_DIR=/work/output \
+    TEST_ID=test_run
+
+# Execució estàndard de proves: genera log, JUnit XML i informe HTML
+CMD ["sh", "-c", "mkdir -p \"$OUTPUT_DIR\" && pytest \"$TEST_SCRIPT\" -v --junitxml=\"$OUTPUT_DIR/${TEST_ID}.junit.xml\" --html=\"$OUTPUT_DIR/${TEST_ID}.html\" --self-contained-html > \"$OUTPUT_DIR/${TEST_ID}.log\" 2>&1; exit_code=$?; cat \"$OUTPUT_DIR/${TEST_ID}.log\"; exit $exit_code"]
